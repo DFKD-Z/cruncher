@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/* Precision Processing 风格：深色主题 + 青蓝强调色 */
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #e2e8f0;
+  background-color: #070707;
+  --accent: #22d3ee;
+  --accent-hover: #06b6d4;
+  --card: #10161f;
+  --border: #171e27;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.text-gradient-cyan {
+  background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@keyframes compress-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+.animate-compress-progress {
+  animation: compress-progress 1.4s ease-in-out infinite;
+}
+
+/* ImageDetailPage: 裁剪模式下 ReactCrop 宽高自适应容器，完整显示原图 */
+.image-detail-react-crop {
+  max-width: 100%;
+  max-height: 100%;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-detail-react-crop .ReactCrop__child-wrapper {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 100%;
+}

@@ -1,0 +1,360 @@
+import { useCallback, useState } from "react";
+import { useNavigate, useParams, Routes, Route, Navigate } from "react-router-dom";
+import { invoke } from "@tauri-apps/api/core";
+import { tempDir, join } from "@tauri-apps/api/path";
+import { save } from "@tauri-apps/plugin-dialog";
+import { useI18n } from "./hooks/useI18n";
+import { ImportWorkspace } from "./components/ImportWorkspace";
+import { AssetGrid } from "./components/AssetGrid";
+import { FfmpegBanner } from "./components/FfmpegBanner";
+import { CropPage } from "./components/CropPage";
+import { PreviewModal } from "./components/PreviewModal";
+import { ImageDetailPage } from "./pages/ImageDetailPage";
+import { useFfmpegCheck } from "./hooks/useFfmpegCheck";
+import { useCompress } from "./hooks/useCompress";
+import type { CompressTask } from "./types";
+
+type TabId = "image" | "video";
+
+interface ImageDetailRouteProps {
+  imageTasks: CompressTask[];
+  running: boolean;
+  runSingleTask: (task: CompressTask) => void;
+  handleDownloadOutput: (task: CompressTask) => void;
+  handleApplyCrop: (task: CompressTask, crop: { x: number; y: number; width: number; height: number }) => Promise<void>;
+  onBack: () => void;
+}
+
+function ImageDetailRoute({
+  imageTasks,
+  running,
+  runSingleTask,
+  handleDownloadOutput,
+  handleApplyCrop,
+  onBack,
+}: ImageDetailRouteProps) {
+  const { taskId: rawTaskId } = useParams<{ taskId: string }>();
+  const taskId = rawTaskId ? decodeURIComponent(rawTaskId) : null;
+  const task = taskId
+    ? (imageTasks.find((t) => t.id === taskId) ?? null)
+    : null;
+  if (!task || task.type !== "image") {
+    return <Navigate to="/" replace />;
+  }
+  return (
+    <ImageDetailPage
+      task={task}
+      running={running}
+      onBack={onBack}
+      onApplyCrop={(crop) => handleApplyCrop(task, crop)}
+      onApplyProcess={() => runSingleTask(task)}
+      onSave={() => handleDownloadOutput(task)}
+    />
+  );
+}
+
+export default function App() {
+  const { t } = useI18n();
+  const { result: ffmpegResult } = useFfmpegCheck();
+  const [activeTab, setActiveTab] = useState<TabId>("image");
+  const {
+    tasks,
+    outputDir,
+    setOutputDir,
+    compressMode,
+    setCompressMode,
+    addPaths,
+    removeTask,
+    setTaskCrop,
+    setTaskCroppedPath,
+    setTaskSelected,
+    toggleSelectAll,
+    runSelectedByType,
+    runSingleTask,
+    running,
+    progress,
+    openOutputFolder,
+  } = useCompress();
+
+  const navigate = useNavigate();
+  const [cropTask, setCropTask] = useState<CompressTask | null>(null);
+  const [fileAdding, setFileAdding] = useState(false);
+  const [previewItem, setPreviewItem] = useState<{ path: string; type: "image" | "video" } | null>(null);
+
+  const imageTasks = tasks.filter((x) => x.type === "image");
+  const videoTasks = tasks.filter((x) => x.type === "video");
+  const currentTasks = activeTab === "image" ? imageTasks : videoTasks;
+  const selectedPendingCount = currentTasks.filter(
+    (x) => x.status === "pending" && x.selected
+  ).length;
+
+  const handleFilesSelected = useCallback(
+    async (paths: string[]) => {
+      if (paths.length === 0) return;
+      setFileAdding(true);
+      try {
+        const infos = new Map<
+          string,
+          { size_bytes: number; width?: number; height?: number; format?: string | null }
+        >();
+        await Promise.all(
+          paths.map(async (path) => {
+            try {
+              const info = await invoke<{
+                size_bytes: number;
+                width?: number;
+                height?: number;
+                format?: string | null;
+              }>("get_file_info", { path });
+              infos.set(path, info);
+            } catch {
+              infos.set(path, { size_bytes: 0 });
+            }
+          })
+        );
+        addPaths(paths, infos);
+      } finally {
+        setFileAdding(false);
+      }
+    },
+    [addPaths]
+  );
+
+  const handleCropConfirm = useCallback(
+    async (crop: { x: number; y: number; width: number; height: number }) => {
+      if (!cropTask) return;
+      setTaskCrop(cropTask.id, crop);
+      setCropTask(null);
+      try {
+        const temp = await tempDir();
+        const ext = cropTask.name.includes(".")
+          ? cropTask.name.slice(cropTask.name.lastIndexOf("."))
+          : ".png";
+        const safeId = cropTask.id.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
+        const outputPath = await join(temp, `gtrans_crop_${safeId}${ext}`);
+        await invoke("crop_image", {
+          path: cropTask.path,
+          outputPath,
+          cropRegion: crop,
+        });
+        setTaskCroppedPath(cropTask.id, outputPath);
+      } catch {
+        // Crop region already saved; cropped file preview will be missing
+      }
+    },
+    [cropTask, setTaskCrop, setTaskCroppedPath]
+  );
+
+  const CROP_TIMEOUT_MS = 60_000;
+
+  const handleApplyCrop = useCallback(
+    async (task: CompressTask, crop: { x: number; y: number; width: number; height: number }) => {
+      setTaskCrop(task.id, crop);
+      const temp = await tempDir();
+      const ext = task.name.includes(".")
+        ? task.name.slice(task.name.lastIndexOf("."))
+        : ".png";
+      const safeId = task.id.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
+      const outputPath = await join(temp, `gtrans_crop_${safeId}${ext}`);
+      const cropPromise = invoke("crop_image", {
+        path: task.path,
+        outputPath,
+        cropRegion: crop,
+      });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Crop timeout")), CROP_TIMEOUT_MS)
+      );
+      await Promise.race([cropPromise, timeoutPromise]);
+      setTaskCroppedPath(task.id, outputPath);
+    },
+    [setTaskCrop, setTaskCroppedPath]
+  );
+
+  const handleDownloadCropped = useCallback(
+    async (croppedPath: string, suggestedName: string) => {
+      const path = await save({
+        defaultPath: suggestedName,
+      });
+      if (path) {
+        try {
+          await invoke("copy_file", { from: croppedPath, to: path });
+          openOutputFolder(path.replace(/[/\\][^/\\]+$/, ""));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    },
+    [openOutputFolder]
+  );
+
+  const handleDownloadOutput = useCallback(
+    async (task: CompressTask) => {
+      if (!task.outputPath) return;
+      const base = task.outputPath.replace(/\\/g, "/").split("/").pop() ?? task.name;
+      const path = await save({ defaultPath: base });
+      if (path) {
+        try {
+          await invoke("copy_file", { from: task.outputPath, to: path });
+          openOutputFolder(path.replace(/[/\\][^/\\]+$/, ""));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    },
+    [openOutputFolder]
+  );
+
+  return (
+    <div className="min-h-screen bg-black-800 text-slate-100">
+      <div className="max-w-8xl mx-auto px-6 py-8">
+        <Routes>
+          {/* 更具体的路由放前面，避免 path="/" 匹配到 /image/xxx */}
+          <Route
+            path="/image/:taskId"
+            element={
+              <ImageDetailRoute
+                imageTasks={imageTasks}
+                running={running}
+                runSingleTask={runSingleTask}
+                handleDownloadOutput={handleDownloadOutput}
+                handleApplyCrop={handleApplyCrop}
+                onBack={() => navigate("/")}
+              />
+            }
+          />
+          <Route
+            path="/"
+            element={
+              <>
+                {activeTab === "video" && (
+                  <FfmpegBanner show={ffmpegResult !== null && !ffmpegResult.available} />
+                )}
+
+                {/* 左右布局 */}
+                <div className="flex flex-col lg:flex-row gap-8 lg:gap-0 min-h-[calc(100vh-6rem)]">
+                  {/* 左侧：上传区域 */}
+                  <div className="lg:w-[42%] xl:w-[38%] lg:max-w-lg lg:pr-8 lg:border-r lg:border-slate-800">
+                    <div className="flex ">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("image")}
+                        className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                          activeTab === "image"
+                            ? "border-cyan-400 text-cyan-400"
+                            : "border-transparent text-slate-400 hover:text-slate-300"
+                        }`}
+                      >
+                        {t("tab.images")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("video")}
+                        className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                          activeTab === "video"
+                            ? "border-cyan-400 text-cyan-400"
+                            : "border-transparent text-slate-400 hover:text-slate-300"
+                        }`}
+                      >
+                        {t("tab.videos")}
+                      </button>
+                    </div>
+
+                    <ImportWorkspace
+                      accept={activeTab === "image" ? "image" : "video"}
+                      onFilesSelected={handleFilesSelected}
+                      disabled={running || fileAdding}
+                      fileAdding={fileAdding}
+                      compressMode={compressMode}
+                      onCompressModeChange={setCompressMode}
+                      outputDir={outputDir}
+                      onOutputDirChange={setOutputDir}
+                      onRun={() => runSelectedByType(activeTab)}
+                      running={running}
+                      progress={progress}
+                      selectedPendingCount={selectedPendingCount}
+                    />
+                  </div>
+
+                  {/* 右侧：资产列表 */}
+                  <div className="flex-1 min-w-0 lg:pl-8">
+                    {activeTab === "image" && imageTasks.length > 0 && (
+                      <AssetGrid
+                        tasks={imageTasks}
+                        taskType="image"
+                        running={running}
+                        onRemove={removeTask}
+                        onCrop={setCropTask}
+                        onOpenFolder={openOutputFolder}
+                        onDownload={handleDownloadOutput}
+                        onCompressSingle={runSingleTask}
+                        onOpenDetail={(task) =>
+                          navigate(`/image/${encodeURIComponent(task.id)}`)
+                        }
+                        onPreview={(path, type) =>
+                          setPreviewItem({ path, type })
+                        }
+                        onDownloadCropped={handleDownloadCropped}
+                        onToggleSelect={setTaskSelected}
+                        onSelectAll={() => toggleSelectAll("image", true)}
+                        onDeselectAll={() => toggleSelectAll("image", false)}
+                      />
+                    )}
+                    {activeTab === "video" && videoTasks.length > 0 && (
+                      <AssetGrid
+                        tasks={videoTasks}
+                        taskType="video"
+                        running={running}
+                        onRemove={removeTask}
+                        onCrop={() => {}}
+                        onOpenFolder={openOutputFolder}
+                        onDownload={handleDownloadOutput}
+                        onCompressSingle={runSingleTask}
+                        onPreview={(path, type) =>
+                          setPreviewItem({ path, type })
+                        }
+                        onToggleSelect={setTaskSelected}
+                        onSelectAll={() => toggleSelectAll("video", true)}
+                        onDeselectAll={() => toggleSelectAll("video", false)}
+                      />
+                    )}
+                    {(activeTab === "image" ? imageTasks : videoTasks).length ===
+                      0 && (
+                      <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                        <p className="text-sm">
+                          {activeTab === "image"
+                            ? t("dropzone.promptImage")
+                            : t("dropzone.promptVideo")}
+                        </p>
+                        <p className="text-xs mt-1">{t("workspace.dropHint")}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* <footer className="mt-8 pt-6 border-t border-slate-800 text-center text-sm text-slate-500">
+                  {t("app.footer")}
+                </footer> */}
+              </>
+            }
+          />
+        </Routes>
+      </div>
+
+      {cropTask && cropTask.type === "image" && (
+        <CropPage
+          imagePath={cropTask.path}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropTask(null)}
+        />
+      )}
+
+      {previewItem && (
+        <PreviewModal
+          path={previewItem.path}
+          type={previewItem.type}
+          onClose={() => setPreviewItem(null)}
+        />
+      )}
+    </div>
+  );
+}
