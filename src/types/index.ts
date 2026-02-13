@@ -7,6 +7,14 @@ export interface CropRegion {
   height: number;
 }
 
+/** Options for image compress (matches backend ProcessOptions) */
+export interface ProcessOptions {
+  quality?: number;
+  format?: string;
+  width?: number;
+  height?: number;
+}
+
 export type TaskType = "image" | "video";
 
 export type TaskStatus =

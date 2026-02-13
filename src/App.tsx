@@ -330,10 +330,6 @@ export default function App() {
                     )}
                   </div>
                 </div>
-
-                {/* <footer className="mt-8 pt-6 border-t border-slate-800 text-center text-sm text-slate-500">
-                  {t("app.footer")}
-                </footer> */}
               </>
             }
           />

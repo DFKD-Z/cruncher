@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Download } from "lucide-react";
-import { Channel, convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { join, tempDir } from "@tauri-apps/api/path";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import ReactCrop, {
   type PixelCrop,
@@ -13,8 +11,9 @@ import ReactCrop, {
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { useI18n } from "../../hooks/useI18n";
+import { useImageProcess } from "../../hooks/useImageProcess";
 import type { CompressTask, CropRegion } from "../../types";
-import { ArrowLeft, Edit, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit } from "lucide-react";
 
 interface ProcessingSettings {
   quality: number;
@@ -54,11 +53,11 @@ const DEFAULT_HEIGHT = 1080;
 
 export function ImageDetailPage({
   task,
-  running,
+  running: _running,
   onBack,
   onApplyCrop,
-  onApplyProcess,
-  onSave,
+  onApplyProcess: _onApplyProcess,
+  onSave: _onSave,
 }: ImageDetailPageProps) {
   const { t } = useI18n();
   const previewPath = task.croppedImagePath ?? task.path;
@@ -72,16 +71,16 @@ export function ImageDetailPage({
     height,
   });
 
+  const { processImage: runProcessImage, isProcessing, progress: processProgress } = useImageProcess();
+
   const [crop, setCrop] = useState<CropRegion | null>(null);
   const [reactCrop, setReactCrop] = useState<PercentCrop | PixelCrop | undefined>(undefined);
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [cropAspect, setCropAspect] = useState<number | undefined>(undefined);
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [processedPath, setProcessedPath] = useState<string | null>(null);
   const [processedSize, setProcessedSize] = useState<number | null>(null);
-  const [processProgress, setProcessProgress] = useState(0);
   const [renderCompleteToast, setRenderCompleteToast] = useState(false);
   const [exportDoneToast, setExportDoneToast] = useState(false);
   const [cropToast, setCropToast] = useState<"success" | "error" | null>(null);
@@ -124,22 +123,6 @@ export function ImageDetailPage({
     }, 3000);
     return () => clearTimeout(timer);
   }, [cropToast]);
-
-  useEffect(() => {
-    let unlisten: (() => void) | null = null;
-
-    const init = async () => {
-      unlisten = await listen<number>("image-progress", (event) => {
-        setProcessProgress(Math.max(0, Math.min(100, Math.round(event.payload))));
-      });
-    };
-
-    init();
-
-    return () => {
-      if (unlisten) unlisten();
-    };
-  }, []);
 
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -289,110 +272,85 @@ export function ImageDetailPage({
     }
   }, [completedCrop, reactCrop, onApplyCrop]);
 
-  const processImage = useCallback(async () => {
-    setIsProcessing(true);
-    setProcessProgress(0);
-    try {
-      const outputWidth = Math.max(1, settings.width);
-      const outputHeight = Math.max(1, settings.height);
-      const outputQuality = Math.max(1, Math.min(100, settings.quality));
-      const outputFormat = settings.format;
+  const handleProcess = useCallback(async () => {
+    const outputWidth = Math.max(1, settings.width);
+    const outputHeight = Math.max(1, settings.height);
+    const outputFormat = settings.format;
 
-      const displayImg = imgRef.current;
-      const nw = displayImg?.naturalWidth ?? task.width ?? DEFAULT_WIDTH;
-      const nh = displayImg?.naturalHeight ?? task.height ?? DEFAULT_HEIGHT;
+    const displayImg = imgRef.current;
+    const nw = displayImg?.naturalWidth ?? task.width ?? DEFAULT_WIDTH;
+    const nh = displayImg?.naturalHeight ?? task.height ?? DEFAULT_HEIGHT;
 
-      let sourceX = 0;
-      let sourceY = 0;
-      let sourceW = nw;
-      let sourceH = nh;
+    let sourceX = 0;
+    let sourceY = 0;
+    let sourceW = nw;
+    let sourceH = nh;
 
-      const cropForRender = completedCrop ?? reactCrop;
-      const useSelection = activeTab === "crop" && displayImg && cropForRender;
+    const cropForRender = completedCrop ?? reactCrop;
+    const useSelection = activeTab === "crop" && displayImg && cropForRender;
 
-      if (useSelection) {
-        const pixelCrop =
-          cropForRender.unit === "px"
-            ? (cropForRender as PixelCrop)
-            : convertToPixelCrop(cropForRender, displayImg.offsetWidth, displayImg.offsetHeight);
+    if (useSelection) {
+      const pixelCrop =
+        cropForRender.unit === "px"
+          ? (cropForRender as PixelCrop)
+          : convertToPixelCrop(cropForRender, displayImg.offsetWidth, displayImg.offsetHeight);
 
-        const safeDisplayWidth = Math.max(1, displayImg.offsetWidth);
-        const safeDisplayHeight = Math.max(1, displayImg.offsetHeight);
-        const scaleX = nw / safeDisplayWidth;
-        const scaleY = nh / safeDisplayHeight;
+      const safeDisplayWidth = Math.max(1, displayImg.offsetWidth);
+      const safeDisplayHeight = Math.max(1, displayImg.offsetHeight);
+      const scaleX = nw / safeDisplayWidth;
+      const scaleY = nh / safeDisplayHeight;
 
-        sourceX = Math.max(0, Math.min(Math.round(pixelCrop.x * scaleX), nw - 1));
-        sourceY = Math.max(0, Math.min(Math.round(pixelCrop.y * scaleY), nh - 1));
-        sourceW = Math.max(1, Math.min(Math.round(pixelCrop.width * scaleX), nw - sourceX));
-        sourceH = Math.max(1, Math.min(Math.round(pixelCrop.height * scaleY), nh - sourceY));
-      } else if (crop) {
-        const scaleX = width > 0 ? nw / width : 1;
-        const scaleY = height > 0 ? nh / height : 1;
-        sourceX = Math.max(0, Math.min(Math.round(crop.x * scaleX), nw - 1));
-        sourceY = Math.max(0, Math.min(Math.round(crop.y * scaleY), nh - 1));
-        sourceW = Math.max(1, Math.min(Math.round(crop.width * scaleX), nw - sourceX));
-        sourceH = Math.max(1, Math.min(Math.round(crop.height * scaleY), nh - sourceY));
-      }
+      sourceX = Math.max(0, Math.min(Math.round(pixelCrop.x * scaleX), nw - 1));
+      sourceY = Math.max(0, Math.min(Math.round(pixelCrop.y * scaleY), nh - 1));
+      sourceW = Math.max(1, Math.min(Math.round(pixelCrop.width * scaleX), nw - sourceX));
+      sourceH = Math.max(1, Math.min(Math.round(pixelCrop.height * scaleY), nh - sourceY));
+    } else if (crop) {
+      const scaleX = width > 0 ? nw / width : 1;
+      const scaleY = height > 0 ? nh / height : 1;
+      sourceX = Math.max(0, Math.min(Math.round(crop.x * scaleX), nw - 1));
+      sourceY = Math.max(0, Math.min(Math.round(crop.y * scaleY), nh - 1));
+      sourceW = Math.max(1, Math.min(Math.round(crop.width * scaleX), nw - sourceX));
+      sourceH = Math.max(1, Math.min(Math.round(crop.height * scaleY), nh - sourceY));
+    }
 
-      const srcExt = task.name.includes(".") ? task.name.split(".").pop()?.toLowerCase() : "png";
-      const normalizedSrcExt = srcExt === "jpg" ? "jpeg" : (srcExt ?? "png");
-      const format =
-        outputFormat === "auto"
-          ? (normalizedSrcExt === "jpeg" || normalizedSrcExt === "webp" || normalizedSrcExt === "png"
-            ? normalizedSrcExt
-            : "png")
-          : outputFormat;
-      const ext = format === "jpeg" ? "jpg" : format;
-      const temp = await tempDir();
-      const safeId = task.id.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
-      const outputPath = await join(temp, `cruncher_preview_${safeId}.${ext}`);
-
-      const cropRegion = sourceW > 0 && sourceH > 0
-        ? {
-            x: sourceX,
-            y: sourceY,
-            width: sourceW,
-            height: sourceH,
-          }
+    const cropRegion =
+      sourceW > 0 && sourceH > 0
+        ? { x: sourceX, y: sourceY, width: sourceW, height: sourceH }
         : undefined;
 
-      const progressChannel = new Channel<number>();
-      progressChannel.onmessage = (progress) => {
-        setProcessProgress(Math.max(0, Math.min(100, Math.round(progress))));
-      };
-
-      await invoke("compress_image", {
+    try {
+      const result = await runProcessImage({
         path: previewPath,
-        outputPath,
-        mode: "visuallyLossless",
         cropRegion,
         options: {
-          quality: outputQuality,
-          format,
+          quality: settings.quality,
+          format: outputFormat,
           width: outputWidth,
           height: outputHeight,
         },
-        progressCallback: progressChannel,
+        tempId: task.id,
       });
-
-      const outputInfo = await invoke<{ size_bytes: number }>("get_file_info", {
-        path: outputPath,
-      }).catch(() => ({ size_bytes: 0 }));
-
-      setProcessedPath(outputPath);
-      setProcessedUrl(convertFileSrc(outputPath));
-      setProcessedSize(outputInfo.size_bytes ?? null);
+      setProcessedPath(result.outputPath);
+      setProcessedUrl(convertFileSrc(result.outputPath));
+      setProcessedSize(result.sizeBytes);
       setRenderCompleteToast(true);
     } catch (error) {
       console.error("processImage failed:", error);
-    } finally {
-      setIsProcessing(false);
     }
-  }, [previewPath, width, height, settings, crop, task.id, task.name, task.width, task.height, completedCrop, reactCrop, activeTab]);
-
-  const handleProcess = useCallback(() => {
-    processImage();
-  }, [processImage]);
+  }, [
+    previewPath,
+    width,
+    height,
+    settings,
+    crop,
+    task.id,
+    task.width,
+    task.height,
+    completedCrop,
+    reactCrop,
+    activeTab,
+    runProcessImage,
+  ]);
 
   const download = useCallback(async () => {
     if (!processedPath) return;

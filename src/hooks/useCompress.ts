@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
+import { compressImage } from "../utils/compressImage";
 import type { CompressTask, CompressMode, CropRegion } from "../types";
 
 const IMAGE_EXT = new Set(
@@ -100,36 +101,35 @@ export function useCompress() {
       );
 
       try {
+        let outputSizeBytes = 0;
         if (task.type === "image") {
-          const progressChannel = new Channel<number>();
-          progressChannel.onmessage = (progress) => {
-            setTasks((prev) =>
-              prev.map((t) =>
-                t.id === task.id
-                  ? { ...t, progressPercent: Math.max(0, Math.min(100, Math.round(progress))) }
-                  : t
-              )
-            );
-          };
-
-          await invoke("compress_image", {
-            path: task.path,
+          const result = await compressImage({
+            path: task.croppedImagePath ?? task.path,
             outputPath,
-            mode: compressMode,
             cropRegion: task.cropRegion ?? undefined,
-            progressCallback: progressChannel,
+            options: { quality: 60 },
+            progressCallback: (p) => {
+              setTasks((prev) =>
+                prev.map((t) =>
+                  t.id === task.id
+                    ? { ...t, progressPercent: Math.max(0, Math.min(100, Math.round(p))) }
+                    : t
+                )
+              );
+            },
           });
+          outputSizeBytes = result.sizeBytes;
         } else {
           await invoke("compress_video", {
             path: task.path,
             outputPath,
             mode: compressMode,
           });
+          const info = await invoke<{ size_bytes: number }>("get_file_info", {
+            path: outputPath,
+          }).catch(() => ({ size_bytes: 0 }));
+          outputSizeBytes = info.size_bytes ?? 0;
         }
-        const info = await invoke<{ size_bytes: number }>("get_file_info", {
-          path: outputPath,
-        }).catch(() => ({ size_bytes: 0 }));
-        const outputSizeBytes = info.size_bytes ?? 0;
         setTasks((prev) =>
           prev.map((t) =>
             t.id === task.id

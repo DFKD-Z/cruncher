@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{"title": "cruncher", "width": 800, "height": 600}],
+    "windows": [{"title": "cruncher", "width": 1024, "height": 640}],
     "security": {
       "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost data: blob:; media-src 'self' asset: https://asset.localhost data: blob:",
       "assetProtocol": {
