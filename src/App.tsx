@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useNavigate, useParams, Routes, Route, Navigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { tempDir, join } from "@tauri-apps/api/path";
-import { save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { useI18n } from "./hooks/useI18n";
 import { ImportWorkspace } from "./components/ImportWorkspace";
 import { AssetGrid } from "./components/AssetGrid";
@@ -136,6 +136,23 @@ export default function App() {
     [addPaths]
   );
 
+  const handleImportFolder = useCallback(async () => {
+    const selected = await open({ directory: true });
+    if (selected == null) return;
+    const dir = Array.isArray(selected) ? selected[0] : selected;
+    if (!dir) return;
+    try {
+      const paths = await invoke<string[]>("list_image_files_in_directory", {
+        dir,
+      });
+      if (paths.length > 0) {
+        await handleFilesSelected(paths);
+      }
+    } catch (e) {
+      console.error("list_image_files_in_directory failed", e);
+    }
+  }, [handleFilesSelected]);
+
   const handleCropConfirm = useCallback(
     async (crop: { x: number; y: number; width: number; height: number }) => {
       if (!cropTask) return;
@@ -213,11 +230,17 @@ export default function App() {
           await invoke("copy_file", { from: task.outputPath, to: path });
           openOutputFolder(path.replace(/[/\\][^/\\]+$/, ""));
         } catch (e) {
-          console.error(e);
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("copy_file failed", msg);
+          if (msg.includes("empty") || msg.includes("0 bytes")) {
+            window.alert(t("download.errorSourceEmpty"));
+          } else {
+            window.alert(t("download.errorCopy", { message: msg }));
+          }
         }
       }
     },
-    [openOutputFolder]
+    [openOutputFolder, t]
   );
 
   return (
@@ -278,6 +301,7 @@ export default function App() {
                     <ImportWorkspace
                       accept={activeTab === "image" ? "image" : "video"}
                       onFilesSelected={handleFilesSelected}
+                      onImportFolder={activeTab === "image" ? handleImportFolder : undefined}
                       disabled={running || fileAdding}
                       fileAdding={fileAdding}
                       fileAddingProgress={fileAddingProgress}

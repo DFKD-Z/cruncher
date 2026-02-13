@@ -161,14 +161,16 @@ fn compress_png(img: &image::DynamicImage, output_path: &str, mode: &CompressMod
     let mut buf = Vec::new();
     let (w, h) = img.dimensions();
     let raw = img.to_rgba8();
-    let png_encoder = image::codecs::png::PngEncoder::new_with_quality(
-        &mut buf,
-        CompressionType::Default,
-        FilterType::Adaptive,
-    );
-    png_encoder
-        .write_image(raw.as_raw(), w, h, ExtendedColorType::Rgba8)
-        .map_err(|e: image::ImageError| e.to_string())?;
+    {
+        let png_encoder = image::codecs::png::PngEncoder::new_with_quality(
+            &mut buf,
+            CompressionType::Default,
+            FilterType::Adaptive,
+        );
+        png_encoder
+            .write_image(raw.as_raw(), w, h, ExtendedColorType::Rgba8)
+            .map_err(|e: image::ImageError| e.to_string())?;
+    }
 
     match mode {
         CompressMode::Lossless => {
@@ -202,10 +204,17 @@ fn compress_jpeg(
     let rgb = img.to_rgb8();
     let (w, h) = rgb.dimensions();
     let mut buf = Vec::new();
-    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, quality);
-    encoder
-        .encode(rgb.as_raw(), w, h, ExtendedColorType::Rgb8)
-        .map_err(|e| e.to_string())?;
+    {
+        let mut encoder =
+            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, quality);
+        encoder
+            .encode(rgb.as_raw(), w, h, ExtendedColorType::Rgb8)
+            .map_err(|e| e.to_string())?;
+    }
+    // Encoder must be dropped so any buffered data is flushed to buf before we write.
+    if buf.is_empty() {
+        return Err("JPEG encoding produced empty output".into());
+    }
     std::fs::write(output_path, &buf).map_err(|e| e.to_string())?;
     Ok(())
 }

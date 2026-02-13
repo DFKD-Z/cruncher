@@ -65,6 +65,32 @@ fn pick_directory() -> Result<Option<String>, String> {
     Ok(path.and_then(|p| p.into_os_string().into_string().ok()))
 }
 
+/// Image extensions for folder import (lowercase).
+const IMAGE_EXT: &[&str] = &["png", "jpg", "jpeg", "webp", "gif", "bmp", "tiff", "tif"];
+
+/// List image file paths in a directory (one level, no recursion).
+#[tauri::command]
+fn list_image_files_in_directory(dir: String) -> Result<Vec<String>, String> {
+    let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
+    let mut paths = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if path.is_file() {
+            if let Some(ext) = path.extension() {
+                let ext = ext.to_string_lossy().to_lowercase();
+                if IMAGE_EXT.contains(&ext.as_str()) {
+                    if let Some(p) = path.to_str() {
+                        paths.push(p.to_string());
+                    }
+                }
+            }
+        }
+    }
+    paths.sort();
+    Ok(paths)
+}
+
 /// Get file metadata: size, and for images dimensions and format.
 /// Runs in a blocking thread so the IPC thread is not blocked when loading many files.
 #[tauri::command]
@@ -141,8 +167,17 @@ fn compress_video(path: String, output_path: String, mode: CompressMode) -> Resu
 }
 
 /// Copy a file from one path to another (e.g. save cropped image to user-chosen path).
+/// Returns an error if the source does not exist or is empty (avoids downloading 0-byte files).
 #[tauri::command]
 fn copy_file(from: String, to: String) -> Result<(), String> {
+    let meta = std::fs::metadata(&from).map_err(|e| e.to_string())?;
+    if !meta.is_file() {
+        return Err("Source is not a file".into());
+    }
+    let len = meta.len();
+    if len == 0 {
+        return Err("Source file is empty (0 bytes), nothing to copy".into());
+    }
     std::fs::copy(&from, &to).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -163,6 +198,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             pick_files,
             pick_directory,
+            list_image_files_in_directory,
             get_file_info,
             crop_image,
             compress_image,

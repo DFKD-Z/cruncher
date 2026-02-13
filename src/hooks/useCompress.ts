@@ -119,6 +119,9 @@ export function useCompress() {
             },
           });
           outputSizeBytes = result.sizeBytes;
+          if (outputSizeBytes === 0) {
+            throw new Error("Compression produced empty file (0 bytes)");
+          }
         } else {
           await invoke("compress_video", {
             path: task.path,

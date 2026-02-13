@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { ImagePlus, Loader2, Play } from "lucide-react";
+import { FolderOpen, ImagePlus, Loader2, Play } from "lucide-react";
 import { useI18n } from "../hooks/useI18n";
 import { ModeSelector } from "./ModeSelector";
 import { OutputPicker } from "./OutputPicker";
@@ -12,6 +12,8 @@ const VIDEO_EXT = ["mp4", "mkv", "avi", "mov", "webm", "flv", "wmv"];
 interface ImportWorkspaceProps {
   accept: DropZoneAccept;
   onFilesSelected: (paths: string[]) => void;
+  /** 导入文件夹（仅图片 tab 时提供），选择目录后自动加载目录内图片到待处理列表 */
+  onImportFolder?: () => void;
   disabled?: boolean;
   fileAdding?: boolean;
   fileAddingProgress?: { current: number; total: number } | null;
@@ -28,6 +30,7 @@ interface ImportWorkspaceProps {
 export function ImportWorkspace({
   accept,
   onFilesSelected,
+  onImportFolder,
   disabled = false,
   fileAdding = false,
   fileAddingProgress = null,
@@ -150,6 +153,20 @@ export function ImportWorkspace({
               );
             })()}
           </p>
+          {onImportFolder && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onImportFolder();
+              }}
+              disabled={disabled}
+              className="mt-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-300 bg-slate-700/80 hover:bg-slate-600/80 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-600"
+            >
+              <FolderOpen className="w-4 h-4" />
+              {t("workspace.importFolder")}
+            </button>
+          )}
         </div>
 
         {fileAdding && (
@@ -232,7 +249,9 @@ export function ImportWorkspace({
                 current: progress.current,
                 total: progress.total,
               })
-            : t("action.start")}
+            : selectedPendingCount > 0
+              ? `${t("action.batchProcess")} (${selectedPendingCount})`
+              : t("action.start")}
         </button>
         </div>
         
