@@ -174,7 +174,7 @@ fn compress_png(img: &image::DynamicImage, output_path: &str, mode: &CompressMod
         CompressMode::Lossless => {
             let mut opt = oxipng::Options::from_preset(2);
             opt.optimize_alpha = true;
-            let in_file = std::env::temp_dir().join("gtrans_png_input.png");
+            let in_file = std::env::temp_dir().join("cruncher_png_input.png");
             std::fs::write(&in_file, &buf).map_err(|e| e.to_string())?;
             let in_file_oxi = oxipng::InFile::Path(in_file.clone());
             let out_file = oxipng::OutFile::from_path(PathBuf::from(output_path));

@@ -131,7 +131,7 @@ export default function App() {
           ? cropTask.name.slice(cropTask.name.lastIndexOf("."))
           : ".png";
         const safeId = cropTask.id.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
-        const outputPath = await join(temp, `gtrans_crop_${safeId}${ext}`);
+        const outputPath = await join(temp, `cruncher_crop_${safeId}${ext}`);
         await invoke("crop_image", {
           path: cropTask.path,
           outputPath,
@@ -155,7 +155,7 @@ export default function App() {
         ? task.name.slice(task.name.lastIndexOf("."))
         : ".png";
       const safeId = task.id.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
-      const outputPath = await join(temp, `gtrans_crop_${safeId}${ext}`);
+      const outputPath = await join(temp, `cruncher_crop_${safeId}${ext}`);
       const cropPromise = invoke("crop_image", {
         path: task.path,
         outputPath,

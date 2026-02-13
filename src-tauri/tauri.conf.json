@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "gtrans",
+  "productName": "cruncher",
   "version": "0.1.0",
-  "identifier": "com.sanfeng.gtrans",
+  "identifier": "com.sanfeng.cruncher",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{"title": "gtrans", "width": 800, "height": 600}],
+    "windows": [{"title": "cruncher", "width": 800, "height": 600}],
     "security": {
       "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost data: blob:; media-src 'self' asset: https://asset.localhost data: blob:",
       "assetProtocol": {

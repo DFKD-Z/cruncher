@@ -345,7 +345,7 @@ export function ImageDetailPage({
       const ext = format === "jpeg" ? "jpg" : format;
       const temp = await tempDir();
       const safeId = task.id.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
-      const outputPath = await join(temp, `gtrans_preview_${safeId}.${ext}`);
+      const outputPath = await join(temp, `cruncher_preview_${safeId}.${ext}`);
 
       const cropRegion = sourceW > 0 && sourceH > 0
         ? {
