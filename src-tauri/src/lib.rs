@@ -5,7 +5,7 @@ use tauri::ipc::Channel;
 
 mod core;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CropRegion {
     pub x: u32,
     pub y: u32,
@@ -13,7 +13,7 @@ pub struct CropRegion {
     pub height: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessOptions {
     pub quality: Option<u8>,
@@ -22,7 +22,7 @@ pub struct ProcessOptions {
     pub height: Option<u32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CompressMode {
     Lossless,
@@ -66,9 +66,13 @@ fn pick_directory() -> Result<Option<String>, String> {
 }
 
 /// Get file metadata: size, and for images dimensions and format.
+/// Runs in a blocking thread so the IPC thread is not blocked when loading many files.
 #[tauri::command]
-fn get_file_info(path: String) -> Result<FileInfo, String> {
-    let meta = core::image::get_file_info(&path)?;
+async fn get_file_info(path: String) -> Result<FileInfo, String> {
+    let path_clone = path.clone();
+    let meta = tauri::async_runtime::spawn_blocking(move || core::image::get_file_info(&path_clone))
+        .await
+        .map_err(|e| e.to_string())??;
 
     Ok(FileInfo {
         path,
@@ -90,8 +94,9 @@ fn crop_image(
 }
 
 /// Compress image: optional crop first, then compress by format and mode.
+/// Runs in a blocking thread so progress_callback can be delivered to the frontend during execution.
 #[tauri::command]
-fn compress_image(
+async fn compress_image(
     path: String,
     output_path: String,
     mode: CompressMode,
@@ -99,16 +104,21 @@ fn compress_image(
     options: Option<ProcessOptions>,
     progress_callback: Channel<u8>,
 ) -> Result<(), String> {
-    core::image::compress_image(
-        &path,
-        &output_path,
-        &mode,
-        crop_region.as_ref(),
-        options.as_ref(),
-        move |progress| {
-            let _ = progress_callback.send(progress);
-        },
-    )
+    tauri::async_runtime::spawn_blocking(move || {
+        core::image::compress_image(
+            &path,
+            &output_path,
+            &mode,
+            crop_region.as_ref(),
+            options.as_ref(),
+            move |progress| {
+                let _ = progress_callback.send(progress);
+            },
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())
+    .flatten()
 }
 
 /// Check if FFmpeg is available on the system.

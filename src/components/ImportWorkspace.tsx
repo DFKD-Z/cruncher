@@ -14,6 +14,7 @@ interface ImportWorkspaceProps {
   onFilesSelected: (paths: string[]) => void;
   disabled?: boolean;
   fileAdding?: boolean;
+  fileAddingProgress?: { current: number; total: number } | null;
   compressMode: "lossless" | "visuallyLossless";
   onCompressModeChange: (mode: "lossless" | "visuallyLossless") => void;
   outputDir: string | null;
@@ -29,6 +30,7 @@ export function ImportWorkspace({
   onFilesSelected,
   disabled = false,
   fileAdding = false,
+  fileAddingProgress = null,
   compressMode,
   onCompressModeChange,
   outputDir,
@@ -154,8 +156,23 @@ export function ImportWorkspace({
           <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/95 flex flex-col items-center justify-center gap-3 pointer-events-none border-2 border-dashed border-cyan-500/50">
             <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
             <span className="text-white text-sm font-medium">
-              {t("dropzone.adding")}
+              {fileAddingProgress
+                ? t("dropzone.addingProgress", {
+                    current: fileAddingProgress.current,
+                    total: fileAddingProgress.total,
+                  })
+                : t("dropzone.adding")}
             </span>
+            {fileAddingProgress && fileAddingProgress.total > 0 && (
+              <div className="w-48 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                <div
+                  className="h-full bg-cyan-500 transition-all duration-300"
+                  style={{
+                    width: `${(fileAddingProgress.current / fileAddingProgress.total) * 100}%`,
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -79,7 +79,13 @@ export default function App() {
   const navigate = useNavigate();
   const [cropTask, setCropTask] = useState<CompressTask | null>(null);
   const [fileAdding, setFileAdding] = useState(false);
+  const [fileAddingProgress, setFileAddingProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [previewItem, setPreviewItem] = useState<{ path: string; type: "image" | "video" } | null>(null);
+
+  const BATCH_SIZE = 8;
 
   const imageTasks = tasks.filter((x) => x.type === "image");
   const videoTasks = tasks.filter((x) => x.type === "video");
@@ -92,29 +98,39 @@ export default function App() {
     async (paths: string[]) => {
       if (paths.length === 0) return;
       setFileAdding(true);
+      await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+      setFileAddingProgress({ current: 0, total: paths.length });
       try {
-        const infos = new Map<
-          string,
-          { size_bytes: number; width?: number; height?: number; format?: string | null }
-        >();
-        await Promise.all(
-          paths.map(async (path) => {
-            try {
-              const info = await invoke<{
-                size_bytes: number;
-                width?: number;
-                height?: number;
-                format?: string | null;
-              }>("get_file_info", { path });
-              infos.set(path, info);
-            } catch {
-              infos.set(path, { size_bytes: 0 });
-            }
-          })
-        );
-        addPaths(paths, infos);
+        for (let i = 0; i < paths.length; i += BATCH_SIZE) {
+          const batchPaths = paths.slice(i, i + BATCH_SIZE);
+          const batchInfos = new Map<
+            string,
+            { size_bytes: number; width?: number; height?: number; format?: string | null }
+          >();
+          await Promise.all(
+            batchPaths.map(async (path) => {
+              try {
+                const info = await invoke<{
+                  size_bytes: number;
+                  width?: number;
+                  height?: number;
+                  format?: string | null;
+                }>("get_file_info", { path });
+                batchInfos.set(path, info);
+              } catch {
+                batchInfos.set(path, { size_bytes: 0 });
+              }
+            })
+          );
+          addPaths(batchPaths, batchInfos);
+          setFileAddingProgress({
+            current: Math.min(i + batchPaths.length, paths.length),
+            total: paths.length,
+          });
+        }
       } finally {
         setFileAdding(false);
+        setFileAddingProgress(null);
       }
     },
     [addPaths]
@@ -264,6 +280,7 @@ export default function App() {
                       onFilesSelected={handleFilesSelected}
                       disabled={running || fileAdding}
                       fileAdding={fileAdding}
+                      fileAddingProgress={fileAddingProgress}
                       compressMode={compressMode}
                       onCompressModeChange={setCompressMode}
                       outputDir={outputDir}

@@ -48,6 +48,7 @@
   "task.sizeSmaller": "{{percent}}% 更小",
   "task.sizeLarger": "{{percent}}% 更大",
   "dropzone.adding": "添加中…",
+  "dropzone.addingProgress": "加载中 {{current}}/{{total}}",
   "tasks.progress": "压缩中 {{current}}/{{total}}",
   "task.download": "下载",
   "task.compress": "压缩",

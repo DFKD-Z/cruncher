@@ -48,6 +48,7 @@
   "task.sizeSmaller": "{{percent}}% smaller",
   "task.sizeLarger": "{{percent}}% larger",
   "dropzone.adding": "Adding…",
+  "dropzone.addingProgress": "Loading {{current}}/{{total}}",
   "tasks.progress": "Compressing {{current}}/{{total}}",
   "task.download": "Download",
   "task.compress": "Compress",
