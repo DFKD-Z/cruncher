@@ -13,7 +13,7 @@ import "react-image-crop/dist/ReactCrop.css";
 import { useI18n } from "../../hooks/useI18n";
 import { useImageProcess } from "../../hooks/useImageProcess";
 import type { CompressTask, CropRegion } from "../../types";
-import { ArrowLeft, Edit } from "lucide-react";
+import { ArrowLeft, Edit, RefreshCcw } from "lucide-react";
 
 interface ProcessingSettings {
   quality: number;
@@ -579,16 +579,31 @@ export function ImageDetailPage({
               <span className="text-sm font-medium text-slate-300 truncate max-w-[200px]">
                 {task.name}
               </span>
-              {processedUrl && (
+              {processedUrl&& !isProcessing && (
+                <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProcessedUrl(null);
+                    setProcessedPath(null);
+                    setProcessedSize(null);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1 rounded-lg bg-gray-500 hover:bg-gray-400 text-slate-950 text-xs font-semibold transition-colors"
+                >
+                  <RefreshCcw className="w-4 h-4 shrink-0" />
+                  {t("imageDetail.reEdit")}
+                </button>
                 <button
                   type="button"
                   onClick={download}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-semibold transition-colors"
+                  className="flex items-center gap-2 px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-semibold transition-colors"
                   title={t("imageDetail.download")}
                 >
                   <Download className="w-4 h-4 shrink-0" />
                   {t("imageDetail.download")}
                 </button>
+                </>
+                
               )}
             </div>
             <div className="flex gap-6 items-center">
@@ -718,29 +733,6 @@ export function ImageDetailPage({
                 </p>
                 <p className="text-xs text-cyan-400">{processProgress}%</p>
                 <p className="text-xs text-slate-500">{t("imageDetail.runningLocally")}</p>
-              </div>
-            )}
-
-            {processedUrl && !isProcessing && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProcessedUrl(null);
-                    setProcessedPath(null);
-                    setProcessedSize(null);
-                  }}
-                  className="px-6 py-3 bg-white/10 hover:bg-white/15 rounded-xl font-semibold text-sm transition-all border border-white/10"
-                >
-                  {t("imageDetail.reEdit")}
-                </button>
-                <button
-                  type="button"
-                  onClick={download}
-                  className="px-8 py-3 bg-cyan-500 hover:bg-cyan-400 rounded-xl font-semibold text-sm text-slate-950 transition-all"
-                >
-                  {t("imageDetail.exportNow")}
-                </button>
               </div>
             )}
           </div>
