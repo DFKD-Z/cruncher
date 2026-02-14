@@ -68,28 +68,28 @@ export function AssetGrid({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-white">{t("assets.title")}</h2>
+        <h2 className="text-lg font-semibold text-zinc-100">{t("assets.title")}</h2>
         <div className="flex items-center gap-3">
           {pendingCount > 0 && onSelectAll && onDeselectAll && (
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={onSelectAll}
-                className="text-xs text-cyan-400 hover:text-cyan-300 hover:underline"
+                className="text-xs text-blue-400 hover:text-blue-300 hover:underline font-medium"
               >
                 {t("tasks.selectAll")}
               </button>
               <button
                 type="button"
                 onClick={onDeselectAll}
-                className="text-xs text-slate-500 hover:text-slate-400 hover:underline"
+                className="text-xs text-zinc-500 hover:text-zinc-400 hover:underline"
               >
                 {t("tasks.deselectAll")}
               </button>
             </div>
           )}
-          <span className="flex items-center gap-1.5 text-sm">
-            <span className="w-2 h-2 rounded-full bg-cyan-500" />
+          <span className="flex items-center gap-1.5 text-sm text-zinc-400">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
             {t("assets.count", { count: tasks.length })}
           </span>
         </div>
@@ -108,14 +108,14 @@ export function AssetGrid({
             return (
               <div
                 key={task.id}
-                className={`group relative rounded-xl overflow-hidden border transition-colors ${
+                className={`group relative rounded-2xl overflow-hidden border transition-all ${
                   isQueued
-                    ? "bg-cyan-950/30 border-cyan-700 animate-pulse"
-                    : "bg-slate-800/80 border-slate-700 hover:border-slate-600"
+                    ? "bg-blue-950/30 border-blue-600 animate-pulse"
+                    : "bg-zinc-800/90 border-zinc-700 hover:border-zinc-600"
                 }`}
               >
                 {/* 缩略图区域 */}
-                <div className="relative aspect-square bg-slate-800">
+                <div className="relative aspect-square bg-zinc-800">
                   <button
                     type="button"
                     onClick={() =>
@@ -141,7 +141,7 @@ export function AssetGrid({
                   </button>
 
                   {/* 类型标签 (IMAGE / VIDEO) */}
-                  <span className="absolute left-2 bottom-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-cyan-500/90 text-slate-950">
+                  <span className="absolute left-2 bottom-2 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-blue-500/90 text-white">
                     {task.type === "image"
                       ? t("assets.imageTag")
                       : t("assets.videoTag")}
@@ -150,7 +150,7 @@ export function AssetGrid({
                   {/* 裁剪标识 */}
                   {cropped && (
                     <span
-                      className="absolute right-2 top-2 p-1.5 rounded-md bg-amber-500/90 text-slate-950"
+                      className="absolute right-2 top-2 p-1.5 rounded-lg bg-amber-500/90 text-zinc-950"
                       title={t("assets.cropped")}
                     >
                       <Scissors className="w-3.5 h-3.5" />
@@ -158,7 +158,7 @@ export function AssetGrid({
                   )}
 
                   {/* 操作按钮 overlay */}
-                  <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                  <div className="absolute inset-0 bg-zinc-900/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                     {onOpenDetail && task.type === "image" && (
                       <button
                         type="button"
@@ -166,7 +166,7 @@ export function AssetGrid({
                           e.stopPropagation();
                           onOpenDetail(task);
                         }}
-                        className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-cyan-400"
+                        className="p-2 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-blue-400 transition-colors"
                         title={t("task.openDetail")}
                       >
                         <Pencil className="w-4 h-4" />
@@ -179,7 +179,7 @@ export function AssetGrid({
                           e.stopPropagation();
                           onCompressSingle(task);
                         }}
-                        className="p-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                        className="p-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white shadow-sm transition-colors"
                         title={t("task.compress")}
                       >
                         <Play className="w-4 h-4" />
@@ -194,7 +194,7 @@ export function AssetGrid({
                               e.stopPropagation();
                               onDownload(task);
                             }}
-                            className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-cyan-400"
+                            className="p-2 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-blue-400 transition-colors"
                             title={t("task.download")}
                           >
                             <Download className="w-4 h-4" />
@@ -209,7 +209,7 @@ export function AssetGrid({
                                 task.outputPath!.replace(/[/\\][^/\\]+$/, "")
                               );
                             }}
-                            className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-cyan-400"
+                            className="p-2 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-blue-400 transition-colors"
                             title={t("task.openFolder")}
                           >
                             <FolderOpen className="w-4 h-4" />
@@ -230,15 +230,15 @@ export function AssetGrid({
                             task.name.replace(/\.[^.]+$/, "") + "_cropped" + ext
                           );
                         }}
-                        className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-cyan-400"
+                        className="p-2 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-blue-400 transition-colors"
                         title={t("task.downloadCropped")}
                       >
                         <Download className="w-4 h-4" />
                       </button>
                     )}
                     {task.status === "compressing" && (
-                      <div className="flex flex-col items-center gap-1 text-cyan-300">
-                        <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+                      <div className="flex flex-col items-center gap-1 text-blue-300">
+                        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
                         <span className="text-[10px] font-semibold">
                           {Math.max(0, Math.min(100, Math.round(task.progressPercent ?? 0)))}%
                         </span>
@@ -260,13 +260,13 @@ export function AssetGrid({
                         onChange={(e) =>
                           onToggleSelect(task.id, e.target.checked)
                         }
-                        className="rounded border-slate-500 text-cyan-500 focus:ring-cyan-500 bg-slate-800/90 w-4 h-4"
+                        className="rounded border-zinc-500 text-blue-500 focus:ring-blue-500 bg-zinc-800/90 w-4 h-4"
                         onClick={(e) => e.stopPropagation()}
                       />
                     </label>
                   )}
                   <p
-                    className="font-medium text-white truncate text-sm cursor-pointer hover:text-cyan-400 transition-colors"
+                    className="font-medium text-zinc-100 truncate text-sm cursor-pointer hover:text-blue-400 transition-colors"
                     title={task.name}
                     onClick={() => onOpenDetail?.(task)}
                     onKeyDown={(e) =>
@@ -277,7 +277,7 @@ export function AssetGrid({
                   >
                     {task.name}
                   </p>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
+                  <div className="flex items-center gap-3 mt-1.5 text-xs text-zinc-500">
                     <span className="flex items-center gap-1">
                       <ArrowDownToLine className="w-3.5 h-3.5 shrink-0" />
                       {formatBytes(task.sizeBytes)}
@@ -293,7 +293,7 @@ export function AssetGrid({
                 <button
                   type="button"
                   onClick={() => onRemove(task.id)}
-                  className="absolute top-2 right-2 p-1 rounded-md bg-slate-900/80 hover:bg-red-500/80 text-slate-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all z-10"
+                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-zinc-900/90 hover:bg-red-500/90 text-zinc-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all z-10"
                   title={t("task.remove")}
                 >
                   <X className="w-4 h-4" />

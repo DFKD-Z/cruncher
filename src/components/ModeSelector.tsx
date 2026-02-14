@@ -10,29 +10,29 @@ interface ModeSelectorProps {
 export function ModeSelector({ value, onChange, disabled }: ModeSelectorProps) {
   const { t } = useI18n();
   return (
-    <div className="flex gap-4 items-center">
-      <span className="text-sm text-slate-400">{t("mode.label")}</span>
-      <label className="flex items-center gap-2 cursor-pointer border border-slate-800 rounded-lg p-2">
+    <div className="flex gap-3 items-center flex-wrap">
+      <span className="text-sm text-zinc-500">{t("mode.label")}</span>
+      <label className="flex items-center gap-2 cursor-pointer border border-zinc-600 rounded-lg px-3 py-2 bg-zinc-800/60 hover:bg-zinc-700/60 transition-colors">
         <input
           type="radio"
           name="compress-mode"
           checked={value === "lossless"}
           onChange={() => onChange("lossless")}
           disabled={disabled}
-          className="rounded-full border-slate-500 text-cyan-500 focus:ring-cyan-500 bg-slate-700"
+          className="rounded-full border-zinc-500 text-blue-500 focus:ring-blue-500 bg-zinc-700"
         />
-        <span className="text-sm text-slate-300">{t("mode.lossless")}</span>
+        <span className="text-sm text-zinc-300">{t("mode.lossless")}</span>
       </label>
-      <label className="flex items-center gap-2 cursor-pointer border border-slate-800 rounded-lg p-2">
+      <label className="flex items-center gap-2 cursor-pointer border border-zinc-600 rounded-lg px-3 py-2 bg-zinc-800/60 hover:bg-zinc-700/60 transition-colors">
         <input
           type="radio"
           name="compress-mode"
           checked={value === "visuallyLossless"}
           onChange={() => onChange("visuallyLossless")}
           disabled={disabled}
-          className="rounded-full border-slate-500 text-cyan-500 focus:ring-cyan-500 bg-slate-700"
+          className="rounded-full border-zinc-500 text-blue-500 focus:ring-blue-500 bg-zinc-700"
         />
-        <span className="text-sm text-slate-300">{t("mode.visuallyLossless")}</span>
+        <span className="text-sm text-zinc-300">{t("mode.visuallyLossless")}</span>
       </label>
     </div>
   );

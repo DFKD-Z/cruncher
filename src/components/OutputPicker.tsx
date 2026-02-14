@@ -25,7 +25,7 @@ export function OutputPicker({ value, onChange, disabled }: OutputPickerProps) {
         type="button"
         onClick={handleClick}
         disabled={disabled}
-        className="flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 disabled:opacity-50 text-sm text-slate-300"
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 disabled:opacity-50 text-sm text-zinc-200 transition-colors"
       >
         <FolderOpen className="w-4 h-4" />
         {value ? (

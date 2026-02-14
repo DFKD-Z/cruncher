@@ -244,8 +244,8 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-black-800 text-slate-100">
-      <div className="max-w-8xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <div className="max-w-8xl mx-auto">
         <Routes>
           {/* 更具体的路由放前面，避免 path="/" 匹配到 /image/xxx */}
           <Route
@@ -269,18 +269,18 @@ export default function App() {
                   <FfmpegBanner show={ffmpegResult !== null && !ffmpegResult.available} />
                 )}
 
-                {/* 左右布局 */}
-                <div className="flex flex-col lg:flex-row gap-8 lg:gap-0 min-h-[calc(100vh-6rem)]">
-                  {/* 左侧：上传区域 */}
-                  <div className="lg:w-[42%] xl:w-[38%] lg:max-w-lg lg:pr-8 lg:border-r lg:border-slate-800">
-                    <div className="flex ">
+                {/* 左右布局：固定高度，仅右侧列表可滚动 */}
+                <div className="flex flex-col lg:flex-row gap-8 lg:gap-0 h-screen overflow-hidden">
+                  {/* 左侧：上传区域（固定不随列表滚动）— 苹果风格 */}
+                  <div className="shrink-0 lg:w-[42%] xl:w-[38%] lg:max-w-lg lg:pr-8 lg:border-r lg:border-zinc-800 p-6">
+                    <div className="flex p-1.5 bg-zinc-900/80 border border-zinc-700 rounded-xl w-fit mb-6">
                       <button
                         type="button"
                         onClick={() => setActiveTab("image")}
-                        className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                        className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition-all ${
                           activeTab === "image"
-                            ? "border-cyan-400 text-cyan-400"
-                            : "border-transparent text-slate-400 hover:text-slate-300"
+                            ? "bg-blue-500 text-white shadow-sm"
+                            : "text-zinc-400 hover:text-zinc-100"
                         }`}
                       >
                         {t("tab.images")}
@@ -288,10 +288,10 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setActiveTab("video")}
-                        className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                        className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition-all ${
                           activeTab === "video"
-                            ? "border-cyan-400 text-cyan-400"
-                            : "border-transparent text-slate-400 hover:text-slate-300"
+                            ? "bg-blue-500 text-white shadow-sm"
+                            : "text-zinc-400 hover:text-zinc-100"
                         }`}
                       >
                         {t("tab.videos")}
@@ -316,8 +316,8 @@ export default function App() {
                     />
                   </div>
 
-                  {/* 右侧：资产列表 */}
-                  <div className="flex-1 min-w-0 lg:pl-8">
+                  {/* 右侧：资产列表（仅此区域可滚动） */}
+                  <div className="flex-1 min-w-0 lg:pl-8 overflow-y-auto overflow-x-hidden p-6">
                     {activeTab === "image" && imageTasks.length > 0 && (
                       <AssetGrid
                         tasks={imageTasks}
@@ -360,13 +360,13 @@ export default function App() {
                     )}
                     {(activeTab === "image" ? imageTasks : videoTasks).length ===
                       0 && (
-                      <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-                        <p className="text-sm">
+                      <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                        <p className="text-sm font-medium">
                           {activeTab === "image"
                             ? t("dropzone.promptImage")
                             : t("dropzone.promptVideo")}
                         </p>
-                        <p className="text-xs mt-1">{t("workspace.dropHint")}</p>
+                        <p className="text-xs mt-1.5 text-zinc-500/80">{t("workspace.dropHint")}</p>
                       </div>
                     )}
                   </div>

@@ -91,21 +91,16 @@ export function ImportWorkspace({
   }, []);
 
   return (
-    <div className="flex flex-col h-full mt-4">
-      {/* 标签 */}
-      {/* <span className="inline-flex w-fit px-3 py-1 rounded-md text-xs font-medium bg-slate-700/80 text-slate-300 mb-6">
-        {t("workspace.label")}
-      </span> */}
-
+    <div className="flex flex-col h-full mt-2">
       {/* 标题区 */}
-      <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
+      <h1 className="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight mb-1.5">
         {t("workspace.title")}
       </h1>
-      <p className="text-slate-400 text-sm mb-8 max-w-md">
+      <p className="text-zinc-500 text-sm mb-6 max-w-md">
         {t("workspace.desc")}
       </p>
 
-      {/* 上传区域 */}
+      {/* 上传区域 — 苹果风格卡片 */}
       <div className="relative mb-6">
         <div
           role="button"
@@ -115,29 +110,29 @@ export function ImportWorkspace({
           onDragOver={handleDragOver}
           onKeyDown={(e) => e.key === "Enter" && handleClick()}
           className={`
-            relative cursor-pointer rounded-xl p-8 text-center transition-colors select-none
-            border-2 border-dashed min-h-[180px] flex flex-col items-center justify-center gap-3
+            relative cursor-pointer rounded-2xl p-8 text-center transition-all select-none
+            border border-dashed min-h-[180px] flex flex-col items-center justify-center gap-3
             ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-            bg-slate-800/60 border-slate-600 hover:border-cyan-500/60 hover:bg-slate-800/80
+            bg-zinc-800/90 border-zinc-600 hover:border-blue-500/50 hover:bg-zinc-800
           `}
         >
           <div className="relative">
-            <div className="w-16 h-16 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-              <ImagePlus className="w-8 h-8 text-cyan-400" />
+            <div className="w-14 h-14 rounded-xl bg-blue-500/20 flex items-center justify-center">
+              <ImagePlus className="w-7 h-7 text-blue-400" />
             </div>
-            <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center text-slate-950 text-lg font-bold leading-none">
+            <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold leading-none">
               +
             </span>
           </div>
-          <p className="font-semibold text-white">{t("workspace.importAssets")}</p>
-          <p className="text-sm text-slate-400">
+          <p className="font-semibold text-zinc-100">{t("workspace.importAssets")}</p>
+          <p className="text-sm text-zinc-500">
             {(() => {
               const parts = t("workspace.dropHint").split(t("workspace.browse"));
               return (
                 <>
                   {parts[0]}
                   <span
-                    className="text-cyan-400 hover:underline cursor-pointer"
+                    className="text-blue-400 hover:underline cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleClick();
@@ -161,7 +156,7 @@ export function ImportWorkspace({
                 onImportFolder();
               }}
               disabled={disabled}
-              className="mt-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-300 bg-slate-700/80 hover:bg-slate-600/80 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-600"
+              className="mt-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-300 bg-zinc-700/80 hover:bg-zinc-600 border border-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <FolderOpen className="w-4 h-4" />
               {t("workspace.importFolder")}
@@ -170,9 +165,9 @@ export function ImportWorkspace({
         </div>
 
         {fileAdding && (
-          <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/95 flex flex-col items-center justify-center gap-3 pointer-events-none border-2 border-dashed border-cyan-500/50">
-            <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
-            <span className="text-white text-sm font-medium">
+          <div className="absolute inset-0 z-10 rounded-2xl bg-zinc-900/95 flex flex-col items-center justify-center gap-3 pointer-events-none border border-dashed border-blue-500/40">
+            <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+            <span className="text-zinc-100 text-sm font-medium">
               {fileAddingProgress
                 ? t("dropzone.addingProgress", {
                     current: fileAddingProgress.current,
@@ -181,9 +176,9 @@ export function ImportWorkspace({
                 : t("dropzone.adding")}
             </span>
             {fileAddingProgress && fileAddingProgress.total > 0 && (
-              <div className="w-48 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+              <div className="w-48 h-1.5 rounded-full bg-zinc-700 overflow-hidden">
                 <div
-                  className="h-full bg-cyan-500 transition-all duration-300"
+                  className="h-full bg-blue-500 transition-all duration-300"
                   style={{
                     width: `${(fileAddingProgress.current / fileAddingProgress.total) * 100}%`,
                   }}
@@ -220,8 +215,8 @@ export function ImportWorkspace({
         </div>
       </div> */}
 
-      {/* 模式、输出、运行 */}
-      <div className="flex flex-col gap-3">
+      {/* 模式、输出、运行 — 苹果风格卡片 */}
+      <div className="p-5 bg-zinc-800/90 border border-zinc-700 rounded-2xl space-y-4">
         <ModeSelector
           value={compressMode}
           onChange={onCompressModeChange}
@@ -237,7 +232,7 @@ export function ImportWorkspace({
           type="button"
           onClick={onRun}
           disabled={running || selectedPendingCount === 0}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-semibold transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold shadow-sm transition-all"
         >
           {running ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -254,20 +249,19 @@ export function ImportWorkspace({
               : t("action.start")}
         </button>
         </div>
-        
       </div>
 
       {running && progress && (
         <div className="mt-4">
-          <div className="flex justify-between text-sm text-slate-400 mb-1.5">
+          <div className="flex justify-between text-sm text-zinc-500 mb-1.5">
             <span>{t("tasks.compressing")}</span>
             <span>
               {progress.current}/{progress.total}
             </span>
           </div>
-          <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+          <div className="h-2 rounded-full bg-zinc-700 overflow-hidden">
             <div
-              className="h-full bg-cyan-500 transition-all duration-300 ease-out"
+              className="h-full bg-blue-500 transition-all duration-300 ease-out"
               style={{
                 width: `${(progress.current / progress.total) * 100}%`,
               }}
