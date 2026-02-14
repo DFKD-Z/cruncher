@@ -6,6 +6,7 @@ import type {
   CompressTask,
   CompressMode,
   CropRegion,
+  ImagePipelineStage,
   ImageJobProgressEvent,
   ImageJobRequest,
   ImageJobState,
@@ -30,6 +31,17 @@ function basename(path: string): string {
   return i >= 0 ? path.slice(i + 1) : path;
 }
 
+type DetailJobKind = "render" | "crop";
+
+interface DetailJobNotification {
+  id: string;
+  taskId: string;
+  kind: DetailJobKind;
+  status: "completed" | "failed" | "cancelled";
+  taskName: string;
+  error?: string;
+}
+
 export function useCompress() {
   const [tasks, setTasks] = useState<CompressTask[]>([]);
   const [outputDir, setOutputDir] = useState<string | null>(null);
@@ -38,6 +50,13 @@ export function useCompress() {
   /** 压缩进度：当前完成数 / 总数，仅在 running 时有值 */
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [activeImageJobId, setActiveImageJobId] = useState<string | null>(null);
+  const [detailNotifications, setDetailNotifications] = useState<
+    DetailJobNotification[]
+  >([]);
+
+  const pushDetailNotification = useCallback((payload: DetailJobNotification) => {
+    setDetailNotifications((prev) => [...prev, payload]);
+  }, []);
 
   const addPaths = useCallback((paths: string[], fileInfos?: Map<string, { size_bytes: number; width?: number; height?: number; format?: string | null }>) => {
     const newTasks: CompressTask[] = paths.map((path) => {
@@ -94,6 +113,206 @@ export function useCompress() {
       })
     );
   }, []);
+
+  const runDetailImageJob = useCallback(
+    async (params: {
+      task: CompressTask;
+      inputPath: string;
+      kind: DetailJobKind;
+      cropRegion?: CropRegion;
+      options?: ImageJobRequest["options"];
+      pipeline?: ImagePipelineStage[];
+    }) => {
+      const { task, inputPath, kind, cropRegion, options, pipeline } = params;
+
+      setTasks((prev) =>
+        prev.map((item) =>
+          item.id === task.id
+            ? {
+                ...item,
+                status: "compressing",
+                progressPercent: 0,
+                error: undefined,
+                detailJobType: kind,
+                ...(kind === "crop"
+                  ? {
+                      outputPath: undefined,
+                      outputSizeBytes: undefined,
+                    }
+                  : {}),
+              }
+            : item
+        )
+      );
+
+      let targetJobId: string | null = null;
+      const request: ImageJobRequest = {
+        inputs: [inputPath],
+        outputDir: outputDir ?? undefined,
+        mode: compressMode,
+        cropRegion,
+        options,
+        pipeline,
+      };
+
+      const unlisten = await listen<ImageJobProgressEvent>(
+        "image-job-progress",
+        (event) => {
+          if (!targetJobId) return;
+          const payload = event.payload;
+          if (payload.jobId !== targetJobId) return;
+
+          if (payload.inputPath) {
+            if (payload.status === "running") {
+              setTasks((prev) =>
+                prev.map((item) =>
+                  item.id === task.id
+                    ? {
+                        ...item,
+                        status: "compressing",
+                        progressPercent: Math.max(
+                          0,
+                          Math.min(100, Math.round(payload.stageProgress))
+                        ),
+                      }
+                    : item
+                )
+              );
+            }
+
+            if (payload.status === "completed") {
+              const nextOutputPath = payload.outputPath ?? undefined;
+              if (kind === "render" && nextOutputPath) {
+                invoke<{ size_bytes: number }>("get_file_info", {
+                  path: nextOutputPath,
+                })
+                  .then((info) => {
+                    setTasks((prev) =>
+                      prev.map((item) =>
+                        item.id === task.id
+                          ? {
+                              ...item,
+                              outputSizeBytes: info.size_bytes ?? item.outputSizeBytes,
+                            }
+                          : item
+                      )
+                    );
+                  })
+                  .catch(() => {
+                    // 忽略体积查询失败，保留已有数据
+                  });
+              }
+
+              setTasks((prev) =>
+                prev.map((item) => {
+                  if (item.id !== task.id) return item;
+                  if (kind === "crop") {
+                    return {
+                      ...item,
+                      status: "pending",
+                      croppedImagePath: nextOutputPath ?? item.croppedImagePath,
+                      outputPath: undefined,
+                      outputSizeBytes: undefined,
+                      progressPercent: undefined,
+                      detailJobType: kind,
+                    };
+                  }
+                  return {
+                    ...item,
+                    status: "done",
+                    outputPath: nextOutputPath ?? item.outputPath,
+                    progressPercent: 100,
+                    detailJobType: kind,
+                  };
+                })
+              );
+            }
+
+            if (payload.status === "failed" || payload.status === "cancelled") {
+              setTasks((prev) =>
+                prev.map((item) => {
+                  if (item.id !== task.id) return item;
+                  if (kind === "crop") {
+                    return {
+                      ...item,
+                      status: "pending",
+                      error: payload.error ?? item.error,
+                      progressPercent: undefined,
+                      detailJobType: kind,
+                    };
+                  }
+                  return {
+                    ...item,
+                    status: payload.status === "cancelled" ? "cancelled" : "error",
+                    error: payload.error ?? item.error,
+                    progressPercent: Math.max(
+                      0,
+                      Math.min(100, Math.round(payload.stageProgress))
+                    ),
+                    detailJobType: kind,
+                  };
+                })
+              );
+            }
+          }
+
+          if (
+            !payload.inputPath &&
+            (payload.status === "completed" ||
+              payload.status === "failed" ||
+              payload.status === "cancelled")
+          ) {
+            unlisten();
+            pushDetailNotification({
+              id: `${task.id}-${targetJobId}-${Date.now()}`,
+              taskId: task.id,
+              kind,
+              status: payload.status,
+              taskName: task.name,
+              error: payload.error,
+            });
+          }
+        }
+      );
+
+      try {
+        targetJobId = await invoke<string>("create_image_job", { request });
+      } catch (error) {
+        unlisten();
+        const message = error instanceof Error ? error.message : String(error);
+        setTasks((prev) =>
+          prev.map((item) => {
+            if (item.id !== task.id) return item;
+            if (kind === "crop") {
+              return {
+                ...item,
+                status: "pending",
+                error: message,
+                progressPercent: undefined,
+                detailJobType: kind,
+              };
+            }
+            return {
+              ...item,
+              status: "error",
+              error: message,
+              progressPercent: undefined,
+              detailJobType: kind,
+            };
+          })
+        );
+        pushDetailNotification({
+          id: `${task.id}-local-failed-${Date.now()}`,
+          taskId: task.id,
+          kind,
+          status: "failed",
+          taskName: task.name,
+          error: message,
+        });
+      }
+    },
+    [compressMode, outputDir, pushDetailNotification]
+  );
 
   const runTask = useCallback(
     async (task: CompressTask): Promise<void> => {
@@ -366,6 +585,63 @@ export function useCompress() {
     [tasks, runTask, outputDir, compressMode]
   );
 
+  const runImageDetailRender = useCallback(
+    async (params: {
+      task: CompressTask;
+      inputPath: string;
+      cropRegion?: CropRegion;
+      options: NonNullable<ImageJobRequest["options"]>;
+    }) => {
+      await runDetailImageJob({
+        task: params.task,
+        inputPath: params.inputPath,
+        kind: "render",
+        cropRegion: params.cropRegion,
+        options: params.options,
+      });
+    },
+    [runDetailImageJob]
+  );
+
+  const runImageDetailCrop = useCallback(
+    async (params: {
+      task: CompressTask;
+      inputPath: string;
+      cropRegion: CropRegion;
+    }) => {
+      await runDetailImageJob({
+        task: params.task,
+        inputPath: params.inputPath,
+        kind: "crop",
+        cropRegion: params.cropRegion,
+        pipeline: ["crop", "save"],
+      });
+    },
+    [runDetailImageJob]
+  );
+
+  const resetTaskOutput = useCallback((id: string) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id
+          ? {
+              ...task,
+              status: "pending",
+              outputPath: undefined,
+              outputSizeBytes: undefined,
+              progressPercent: undefined,
+              error: undefined,
+              detailJobType: undefined,
+            }
+          : task
+      )
+    );
+  }, []);
+
+  const dismissDetailNotification = useCallback((id: string) => {
+    setDetailNotifications((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
   /** 单条任务压缩（用于列表项上的「压缩」按钮），不自动下载 */
   const runSingleTask = useCallback(
     async (task: CompressTask) => {
@@ -405,10 +681,15 @@ export function useCompress() {
     runSingleTask,
     runAll,
     runSelectedByType,
+    runImageDetailRender,
+    runImageDetailCrop,
+    resetTaskOutput,
     running,
     progress,
     openOutputFolder,
     activeImageJobId,
     cancelActiveImageJob,
+    detailNotifications,
+    dismissDetailNotification,
   };
 }

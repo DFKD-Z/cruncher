@@ -103,7 +103,7 @@ export function ImagePreviewArea({
       </div>
 
       {isProcessing && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-900/70 dark:bg-zinc-950/70 backdrop-blur-sm rounded-b-2xl">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-900/70 dark:bg-zinc-950/70 backdrop-blur-sm rounded-b-2xl">
           <span className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           <p className="text-sm font-semibold text-white">
             {t("imageDetail.processingFrame")}

@@ -43,6 +43,8 @@ export interface CompressTask {
   progressPercent?: number;
   /** 裁剪后生成的临时文件路径，用于预览与下载 */
   croppedImagePath?: string | null;
+  /** 由详情页触发的后台任务类型，仅用于 UI 反馈 */
+  detailJobType?: "render" | "crop";
 }
 
 export interface FfmpegCheckResult {

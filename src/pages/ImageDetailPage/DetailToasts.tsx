@@ -25,7 +25,7 @@ export function DetailToasts({
       {renderComplete && (
         <div role="status" className={toastClass}>
           <span className={dotClass} />
-          {t("imageDetail.renderComplete")}
+          {t("imageDetail.renderQueued")}
         </div>
       )}
 
@@ -39,7 +39,7 @@ export function DetailToasts({
       {cropToast === "success" && (
         <div role="status" className={toastClass}>
           <span className={dotClass} />
-          {t("imageDetail.cropSuccess")}
+          {t("imageDetail.cropQueued")}
         </div>
       )}
 

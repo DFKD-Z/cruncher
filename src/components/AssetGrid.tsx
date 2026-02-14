@@ -101,9 +101,14 @@ export function AssetGrid({
             const isQueued =
               running && task.status === "pending" && task.selected;
             const cropped = isCropped(task);
-            const previewPath = task.type === "image" && cropped && task.croppedImagePath
-              ? task.croppedImagePath
-              : task.path;
+            const hasProcessedOutput =
+              task.type === "image" && task.status === "done" && !!task.outputPath;
+            const previewPath =
+              hasProcessedOutput && task.outputPath
+                ? task.outputPath
+                : task.type === "image" && cropped && task.croppedImagePath
+                  ? task.croppedImagePath
+                  : task.path;
 
             return (
               <div
@@ -146,6 +151,12 @@ export function AssetGrid({
                       ? t("assets.imageTag")
                       : t("assets.videoTag")}
                   </span>
+
+                  {hasProcessedOutput && (
+                    <span className="absolute left-2 top-2 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-green-500/90 text-white">
+                      {t("detail.statusProcessed")}
+                    </span>
+                  )}
 
                   {/* 裁剪标识 */}
                   {cropped && (

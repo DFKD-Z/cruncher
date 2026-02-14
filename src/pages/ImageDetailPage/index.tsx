@@ -4,7 +4,6 @@ import { save } from "@tauri-apps/plugin-dialog";
 import type { PixelCrop, PercentCrop } from "react-image-crop";
 import { convertToPixelCrop } from "react-image-crop";
 import { useI18n } from "../../hooks/useI18n";
-import { useImageProcess } from "../../hooks/useImageProcess";
 import type { CompressTask, CropRegion } from "../../types";
 import type { ProcessingSettings } from "./types";
 import { DEFAULT_WIDTH, DEFAULT_HEIGHT } from "./types";
@@ -20,8 +19,17 @@ export interface ImageDetailPageProps {
   onBack: () => void;
   onApplyCrop: (crop: CropRegion) => void | Promise<void>;
   onRevertCrop?: () => void;
-  onApplyProcess: () => void;
+  onApplyProcess: (params: {
+    cropRegion?: CropRegion;
+    options: {
+      quality: number;
+      format: string;
+      width: number;
+      height: number;
+    };
+  }) => void | Promise<void>;
   onSave: () => void;
+  onReEdit: () => void;
 }
 
 export function ImageDetailPage({
@@ -30,8 +38,9 @@ export function ImageDetailPage({
   onBack,
   onApplyCrop,
   onRevertCrop,
-  onApplyProcess: _onApplyProcess,
+  onApplyProcess,
   onSave: _onSave,
+  onReEdit,
 }: ImageDetailPageProps) {
   useI18n();
   const previewPath = task.croppedImagePath ?? task.path;
@@ -45,22 +54,21 @@ export function ImageDetailPage({
     height,
   });
 
-  const { processImage: runProcessImage, isProcessing, progress: processProgress } =
-    useImageProcess();
-
   const [crop, setCrop] = useState<CropRegion | null>(null);
   const [reactCrop, setReactCrop] = useState<PercentCrop | PixelCrop | undefined>(undefined);
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [cropAspect, setCropAspect] = useState<number | undefined>(undefined);
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
-  const [processedUrl, setProcessedUrl] = useState<string | null>(null);
-  const [processedPath, setProcessedPath] = useState<string | null>(null);
-  const [processedSize, setProcessedSize] = useState<number | null>(null);
-  const [renderCompleteToast, setRenderCompleteToast] = useState(false);
+  const [submitToast, setSubmitToast] = useState<"render" | "crop" | null>(null);
   const [exportDoneToast, setExportDoneToast] = useState(false);
   const [cropToast, setCropToast] = useState<"success" | "error" | null>(null);
   const [cropErrorMsg, setCropErrorMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>("compress");
+  const isProcessing = task.status === "compressing";
+  const processProgress = task.progressPercent ?? 0;
+  const processedPath = task.outputPath ?? null;
+  const processedUrl = processedPath ? convertFileSrc(processedPath) : null;
+  const processedSize = task.outputSizeBytes ?? null;
 
   const imgRef = useRef<HTMLImageElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -79,12 +87,6 @@ export function ImageDetailPage({
   }, [task.width, task.height]);
 
   useEffect(() => {
-    if (!renderCompleteToast) return;
-    const timer = setTimeout(() => setRenderCompleteToast(false), 3000);
-    return () => clearTimeout(timer);
-  }, [renderCompleteToast]);
-
-  useEffect(() => {
     if (!exportDoneToast) return;
     const timer = setTimeout(() => setExportDoneToast(false), 3000);
     return () => clearTimeout(timer);
@@ -98,6 +100,12 @@ export function ImageDetailPage({
     }, 3000);
     return () => clearTimeout(timer);
   }, [cropToast]);
+
+  useEffect(() => {
+    if (!submitToast) return;
+    const timer = setTimeout(() => setSubmitToast(null), 2000);
+    return () => clearTimeout(timer);
+  }, [submitToast]);
 
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -242,7 +250,7 @@ export function ImageDetailPage({
       setReactCrop(undefined);
       setCompletedCrop(null);
       setCrop(null);
-      setCropToast("success");
+      setSubmitToast("crop");
     } catch (e) {
       setCropToast("error");
       setCropErrorMsg(e instanceof Error ? e.message : String(e));
@@ -314,8 +322,7 @@ export function ImageDetailPage({
         : undefined;
 
     try {
-      const result = await runProcessImage({
-        path: previewPath,
+      await onApplyProcess({
         cropRegion,
         options: {
           quality: settings.quality,
@@ -323,14 +330,10 @@ export function ImageDetailPage({
           width: outputWidth,
           height: outputHeight,
         },
-        tempId: task.id,
       });
-      setProcessedPath(result.outputPath);
-      setProcessedUrl(convertFileSrc(result.outputPath));
-      setProcessedSize(result.sizeBytes);
-      setRenderCompleteToast(true);
+      setSubmitToast("render");
     } catch (error) {
-      console.error("processImage failed:", error);
+      console.error("onApplyProcess failed:", error);
     }
   }, [
     previewPath,
@@ -344,7 +347,7 @@ export function ImageDetailPage({
     completedCrop,
     reactCrop,
     activeTab,
-    runProcessImage,
+    onApplyProcess,
   ]);
 
   const download = useCallback(async () => {
@@ -382,10 +385,8 @@ export function ImageDetailPage({
   }, [task.croppedImagePath, task.path, task.name]);
 
   const handleReEdit = useCallback(() => {
-    setProcessedUrl(null);
-    setProcessedPath(null);
-    setProcessedSize(null);
-  }, []);
+    onReEdit();
+  }, [onReEdit]);
 
   const handleSettingsChange = useCallback((update: Partial<ProcessingSettings>) => {
     setSettings((prev) => ({ ...prev, ...update }));
@@ -425,9 +426,9 @@ export function ImageDetailPage({
           />
 
           <DetailToasts
-            renderComplete={renderCompleteToast}
+            renderComplete={submitToast === "render"}
             exportDone={exportDoneToast}
-            cropToast={cropToast}
+            cropToast={cropToast ?? (submitToast === "crop" ? "success" : null)}
             cropErrorMsg={cropErrorMsg}
           />
 

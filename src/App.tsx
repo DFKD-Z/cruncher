@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, Routes, Route, Navigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { tempDir, join } from "@tauri-apps/api/path";
@@ -22,9 +22,19 @@ type TabId = "image" | "video";
 interface ImageDetailRouteProps {
   imageTasks: CompressTask[];
   running: boolean;
-  runSingleTask: (task: CompressTask) => void;
+  runImageDetailRender: (params: {
+    task: CompressTask;
+    inputPath: string;
+    cropRegion?: { x: number; y: number; width: number; height: number };
+    options: { quality?: number; format?: string; width?: number; height?: number };
+  }) => Promise<void>;
+  runImageDetailCrop: (params: {
+    task: CompressTask;
+    inputPath: string;
+    cropRegion: { x: number; y: number; width: number; height: number };
+  }) => Promise<void>;
+  resetTaskOutput: (taskId: string) => void;
   handleDownloadOutput: (task: CompressTask) => void;
-  handleApplyCrop: (task: CompressTask, crop: { x: number; y: number; width: number; height: number }) => Promise<void>;
   onRevertCrop: (task: CompressTask) => void;
   onBack: () => void;
 }
@@ -32,9 +42,10 @@ interface ImageDetailRouteProps {
 function ImageDetailRoute({
   imageTasks,
   running,
-  runSingleTask,
+  runImageDetailRender,
+  runImageDetailCrop,
+  resetTaskOutput,
   handleDownloadOutput,
-  handleApplyCrop,
   onRevertCrop,
   onBack,
 }: ImageDetailRouteProps) {
@@ -51,10 +62,24 @@ function ImageDetailRoute({
       task={task}
       running={running}
       onBack={onBack}
-      onApplyCrop={(crop) => handleApplyCrop(task, crop)}
+      onApplyCrop={(crop) =>
+        runImageDetailCrop({
+          task,
+          inputPath: task.croppedImagePath ?? task.path,
+          cropRegion: crop,
+        })
+      }
       onRevertCrop={() => onRevertCrop(task)}
-      onApplyProcess={() => runSingleTask(task)}
+      onApplyProcess={(params) =>
+        runImageDetailRender({
+          task,
+          inputPath: task.croppedImagePath ?? task.path,
+          cropRegion: params.cropRegion,
+          options: params.options,
+        })
+      }
       onSave={() => handleDownloadOutput(task)}
+      onReEdit={() => resetTaskOutput(task.id)}
     />
   );
 }
@@ -83,6 +108,11 @@ export default function App() {
     openOutputFolder,
     activeImageJobId,
     cancelActiveImageJob,
+    runImageDetailRender,
+    runImageDetailCrop,
+    resetTaskOutput,
+    detailNotifications,
+    dismissDetailNotification,
   } = useCompress();
 
   const navigate = useNavigate();
@@ -93,6 +123,12 @@ export default function App() {
     total: number;
   } | null>(null);
   const [previewItem, setPreviewItem] = useState<{ path: string; type: "image" | "video" } | null>(null);
+  const [detailToast, setDetailToast] = useState<{
+    kind: "render" | "crop";
+    status: "completed" | "failed" | "cancelled";
+    taskName: string;
+    error?: string;
+  } | null>(null);
 
   const BATCH_SIZE = 8;
 
@@ -187,31 +223,6 @@ export default function App() {
     [cropTask, setTaskCrop, setTaskCroppedPath]
   );
 
-  const CROP_TIMEOUT_MS = 60_000;
-
-  const handleApplyCrop = useCallback(
-    async (task: CompressTask, crop: { x: number; y: number; width: number; height: number }) => {
-      setTaskCrop(task.id, crop);
-      const temp = await tempDir();
-      const ext = task.name.includes(".")
-        ? task.name.slice(task.name.lastIndexOf("."))
-        : ".png";
-      const safeId = task.id.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
-      const outputPath = await join(temp, `cruncher_crop_${safeId}${ext}`);
-      const cropPromise = invoke("crop_image_command", {
-        inputPath: task.path,
-        outputPath,
-        options: crop,
-      });
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Crop timeout")), CROP_TIMEOUT_MS)
-      );
-      await Promise.race([cropPromise, timeoutPromise]);
-      setTaskCroppedPath(task.id, outputPath);
-    },
-    [setTaskCrop, setTaskCroppedPath]
-  );
-
   const handleRevertCrop = useCallback(
     (task: CompressTask) => {
       setTaskCroppedPath(task.id, null);
@@ -219,6 +230,24 @@ export default function App() {
     },
     [setTaskCroppedPath, setTaskCrop]
   );
+
+  useEffect(() => {
+    const notice = detailNotifications[0];
+    if (!notice) return;
+    dismissDetailNotification(notice.id);
+    setDetailToast({
+      kind: notice.kind,
+      status: notice.status,
+      taskName: notice.taskName,
+      error: notice.error,
+    });
+  }, [detailNotifications, dismissDetailNotification]);
+
+  useEffect(() => {
+    if (!detailToast) return;
+    const timer = setTimeout(() => setDetailToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [detailToast]);
 
   const handleDownloadCropped = useCallback(
     async (croppedPath: string, suggestedName: string) => {
@@ -276,9 +305,10 @@ export default function App() {
               <ImageDetailRoute
                 imageTasks={imageTasks}
                 running={running}
-                runSingleTask={runSingleTask}
+                runImageDetailRender={runImageDetailRender}
+                runImageDetailCrop={runImageDetailCrop}
+                resetTaskOutput={resetTaskOutput}
                 handleDownloadOutput={handleDownloadOutput}
-                handleApplyCrop={handleApplyCrop}
                 onRevertCrop={handleRevertCrop}
                 onBack={() => navigate("/")}
               />
@@ -434,6 +464,26 @@ export default function App() {
             type={previewItem.type}
             onClose={() => setPreviewItem(null)}
           />
+        )}
+
+        {detailToast && (
+          <div
+            role={detailToast.status === "completed" ? "status" : "alert"}
+            className={`fixed right-6 top-6 z-50 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
+              detailToast.status === "completed"
+                ? "bg-green-500/15 border-green-500/30 text-green-400"
+                : "bg-red-500/15 border-red-500/30 text-red-400"
+            }`}
+          >
+            {detailToast.status === "completed"
+              ? detailToast.kind === "render"
+                ? t("notification.detailRenderDone", { name: detailToast.taskName })
+                : t("notification.detailCropDone", { name: detailToast.taskName })
+              : detailToast.kind === "render"
+                ? t("notification.detailRenderFailed", { name: detailToast.taskName })
+                : t("notification.detailCropFailed", { name: detailToast.taskName })}
+            {detailToast.error ? ` · ${detailToast.error}` : ""}
+          </div>
         )}
       </div>
     </AppErrorBoundary>
