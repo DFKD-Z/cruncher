@@ -154,7 +154,7 @@ impl JobManager {
 
     pub fn cancel_job(&self, job_id: &str) -> Result<(), String> {
         self.with_job(job_id, |job| {
-            job.cancel_flag.store(true, Ordering::Relaxed);
+            job.cancel_flag.store(true, Ordering::Release);
             if matches!(job.state.status, JobStatus::Pending | JobStatus::Running) {
                 job.state.status = JobStatus::Cancelled;
             }
@@ -167,7 +167,7 @@ impl JobManager {
             .jobs
             .get(job_id)
             .ok_or_else(|| format!("Job not found: {job_id}"))?;
-        Ok(job.cancel_flag.load(Ordering::Relaxed))
+        Ok(job.cancel_flag.load(Ordering::Acquire))
     }
 
     pub fn cancel_flag(&self, job_id: &str) -> Result<Arc<AtomicBool>, String> {

@@ -134,11 +134,31 @@ pub fn save_image_with_format(
     mode: &CompressMode,
     quality: Option<u8>,
 ) -> Result<(), String> {
+    save_image_with_format_progress(img, output_path, format, mode, quality, |_| {})
+}
+
+pub fn save_image_with_format_progress<F>(
+    img: &DynamicImage,
+    output_path: &str,
+    format: &str,
+    mode: &CompressMode,
+    quality: Option<u8>,
+    mut progress_callback: F,
+) -> Result<(), String>
+where
+    F: FnMut(f32),
+{
+    progress_callback(0.0);
     match format {
-        "png" => compress_png(img, output_path, mode),
-        "jpg" | "jpeg" => compress_jpeg(img, output_path, mode, quality),
-        "webp" => compress_webp(img, output_path, mode, quality),
-        _ => img.save(output_path).map_err(|e| e.to_string()),
+        "png" => compress_png(img, output_path, mode, &mut progress_callback),
+        "jpg" | "jpeg" => compress_jpeg(img, output_path, mode, quality, &mut progress_callback),
+        "webp" => compress_webp(img, output_path, mode, quality, &mut progress_callback),
+        _ => {
+            progress_callback(20.0);
+            img.save(output_path).map_err(|e| e.to_string())?;
+            progress_callback(100.0);
+            Ok(())
+        }
     }
 }
 
@@ -208,7 +228,13 @@ where
 }
 
 
-fn compress_png(img: &image::DynamicImage, output_path: &str, mode: &CompressMode) -> Result<(), String> {
+fn compress_png(
+    img: &image::DynamicImage,
+    output_path: &str,
+    mode: &CompressMode,
+    progress_callback: &mut dyn FnMut(f32),
+) -> Result<(), String> {
+    progress_callback(5.0);
     let mut buf = Vec::new();
     let (w, h) = img.dimensions();
     let raw = img.to_rgba8();
@@ -222,6 +248,7 @@ fn compress_png(img: &image::DynamicImage, output_path: &str, mode: &CompressMod
             .write_image(raw.as_raw(), w, h, ExtendedColorType::Rgba8)
             .map_err(|e: image::ImageError| e.to_string())?;
     }
+    progress_callback(35.0);
 
     match mode {
         CompressMode::Lossless => {
@@ -229,13 +256,17 @@ fn compress_png(img: &image::DynamicImage, output_path: &str, mode: &CompressMod
             opt.optimize_alpha = true;
             let in_file = std::env::temp_dir().join("cruncher_png_input.png");
             std::fs::write(&in_file, &buf).map_err(|e| e.to_string())?;
+            progress_callback(55.0);
             let in_file_oxi = oxipng::InFile::Path(in_file.clone());
             let out_file = oxipng::OutFile::from_path(PathBuf::from(output_path));
+            progress_callback(75.0);
             oxipng::optimize(&in_file_oxi, &out_file, &opt).map_err(|e| e.to_string())?;
             let _ = std::fs::remove_file(in_file);
+            progress_callback(100.0);
         }
         CompressMode::VisuallyLossless => {
             std::fs::write(output_path, &buf).map_err(|e| e.to_string())?;
+            progress_callback(100.0);
         }
     }
     Ok(())
@@ -246,13 +277,16 @@ fn compress_jpeg(
     output_path: &str,
     mode: &CompressMode,
     quality: Option<u8>,
+    progress_callback: &mut dyn FnMut(f32),
 ) -> Result<(), String> {
+    progress_callback(5.0);
     let quality = quality.unwrap_or(match mode {
         CompressMode::Lossless => 100,
         CompressMode::VisuallyLossless => 96,
     });
     let quality = quality.clamp(1, 100);
     let rgb = img.to_rgb8();
+    progress_callback(20.0);
     let (w, h) = rgb.dimensions();
     let mut buf = Vec::new();
     {
@@ -262,11 +296,13 @@ fn compress_jpeg(
             .encode(rgb.as_raw(), w, h, ExtendedColorType::Rgb8)
             .map_err(|e| e.to_string())?;
     }
+    progress_callback(75.0);
     // Encoder must be dropped so any buffered data is flushed to buf before we write.
     if buf.is_empty() {
         return Err("JPEG encoding produced empty output".into());
     }
     std::fs::write(output_path, &buf).map_err(|e| e.to_string())?;
+    progress_callback(100.0);
     Ok(())
 }
 
@@ -275,8 +311,11 @@ fn compress_webp(
     output_path: &str,
     mode: &CompressMode,
     quality: Option<u8>,
+    progress_callback: &mut dyn FnMut(f32),
 ) -> Result<(), String> {
+    progress_callback(5.0);
     let rgb = img.to_rgb8();
+    progress_callback(20.0);
     let (w, h) = rgb.dimensions();
     let encoder = webp::Encoder::from_rgb(rgb.as_raw(), w, h);
     let quality = quality.unwrap_or(96).clamp(1, 100) as f32;
@@ -284,7 +323,9 @@ fn compress_webp(
         CompressMode::Lossless => encoder.encode_lossless(),
         CompressMode::VisuallyLossless => encoder.encode(quality),
     };
+    progress_callback(80.0);
     std::fs::write(output_path, &*buf).map_err(|e| e.to_string())?;
+    progress_callback(100.0);
     Ok(())
 }
 

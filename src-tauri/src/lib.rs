@@ -288,7 +288,7 @@ async fn run_image_job(app: AppHandle, manager: JobManager, job_id: String) {
     let _ = manager.mark_running(&job_id);
 
     for (file_index, input_path) in request.inputs.iter().enumerate() {
-        if cancel_flag.load(Ordering::Relaxed) {
+        if cancel_flag.load(Ordering::Acquire) {
             let overall = calculate_file_base_progress(file_index, total_files);
             mark_file_and_emit(
                 &app,
@@ -307,7 +307,7 @@ async fn run_image_job(app: AppHandle, manager: JobManager, job_id: String) {
             continue;
         }
 
-        let output_path = build_output_path(input_path, output_dir.as_deref());
+        let output_path = build_output_path(input_path, output_dir.as_deref(), request.options.as_ref());
         let run_result = run_image_file_pipeline(
             app.clone(),
             manager.clone(),
@@ -471,7 +471,7 @@ async fn run_image_file_pipeline(
                     completed_weight += stage_weight(stage);
                 }
             },
-            || cancel_flag.load(Ordering::Relaxed),
+            || cancel_flag.load(Ordering::Acquire),
         )
     })
     .await
@@ -525,7 +525,7 @@ fn mark_file_and_emit(
 }
 
 fn resolve_final_job_status(cancel_flag: &Arc<AtomicBool>, snapshot: &ImageJobState) -> JobStatus {
-    if cancel_flag.load(Ordering::Relaxed) || snapshot.cancelled_files > 0 {
+    if cancel_flag.load(Ordering::Acquire) || snapshot.cancelled_files > 0 {
         JobStatus::Cancelled
     } else if snapshot.failed_files > 0 {
         JobStatus::Failed
@@ -550,13 +550,17 @@ fn emit_progress(app: &AppHandle, event: ImageJobProgressEvent) {
     let _ = app.emit("image-job-progress", event);
 }
 
-fn build_output_path(input_path: &str, output_dir: Option<&str>) -> String {
+fn build_output_path(
+    input_path: &str,
+    output_dir: Option<&str>,
+    options: Option<&ProcessOptions>,
+) -> String {
     let input = Path::new(input_path);
     let stem = input
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("image");
-    let ext = input.extension().and_then(|s| s.to_str()).unwrap_or("png");
+    let ext = resolve_output_extension(input_path, options);
     let file_name = format!("{stem}_compressed.{ext}");
 
     if let Some(dir) = output_dir {
@@ -571,6 +575,17 @@ fn build_output_path(input_path: &str, output_dir: Option<&str>) -> String {
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
     parent.join(file_name).to_string_lossy().to_string()
+}
+
+fn resolve_output_extension(input_path: &str, options: Option<&ProcessOptions>) -> String {
+    let normalized = core::image::resolve_output_format(input_path, options);
+    if normalized.is_empty() {
+        return "png".to_string();
+    }
+    match normalized.as_str() {
+        "jpeg" => "jpg".to_string(),
+        _ => normalized,
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

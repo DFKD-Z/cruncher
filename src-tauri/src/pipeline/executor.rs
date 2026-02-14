@@ -31,28 +31,47 @@ where
             return Err("Job cancelled".into());
         }
 
+        on_stage_progress(*stage, 0.0);
         match stage {
             PipelineStageKind::Crop => {
                 if let Some(region) = crop_region {
+                    on_stage_progress(*stage, 20.0);
                     img = image::apply_crop(img, region)?;
                 }
+                on_stage_progress(*stage, 100.0);
             }
             PipelineStageKind::Resize => {
+                on_stage_progress(*stage, 20.0);
                 img = image::apply_resize(img, options);
+                on_stage_progress(*stage, 100.0);
             }
             PipelineStageKind::Convert => {
+                on_stage_progress(*stage, 30.0);
                 format = image::resolve_output_format(input_path, options);
+                on_stage_progress(*stage, 100.0);
             }
-            PipelineStageKind::Compress => {}
+            PipelineStageKind::Compress => {
+                on_stage_progress(*stage, 100.0);
+            }
             PipelineStageKind::Save => {
                 if let Some(parent) = Path::new(output_path).parent() {
                     std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
                 }
-                image::save_image_with_format(&img, output_path, &format, mode, quality)?;
+                on_stage_progress(*stage, 15.0);
+                image::save_image_with_format_progress(
+                    &img,
+                    output_path,
+                    &format,
+                    mode,
+                    quality,
+                    |save_progress| {
+                        let stage_progress = 15.0 + (save_progress.clamp(0.0, 100.0) * 0.85);
+                        on_stage_progress(*stage, stage_progress);
+                    },
+                )?;
+                on_stage_progress(*stage, 100.0);
             }
         }
-
-        on_stage_progress(*stage, 100.0);
     }
 
     Ok(())
