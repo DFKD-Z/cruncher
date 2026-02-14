@@ -1,5 +1,5 @@
 use image::codecs::png::{CompressionType, FilterType};
-use image::{ExtendedColorType, GenericImageView, ImageEncoder, ImageFormat};
+use image::{DynamicImage, ExtendedColorType, GenericImageView, ImageEncoder, ImageFormat};
 use std::path::{Path, PathBuf};
 
 use crate::{CompressMode, CropOptions, CropRegion, ProcessOptions};
@@ -50,24 +50,96 @@ pub fn get_file_info(path: &str) -> Result<ImageMetadata, String> {
     })
 }
 
-pub fn crop_image_region(path: &str, output_path: &str, crop_region: &CropRegion) -> Result<(), String> {
-    let img = image::open(path).map_err(|e| e.to_string())?;
+pub fn load_image(path: &str) -> Result<DynamicImage, String> {
+    image::open(path).map_err(|e| e.to_string())
+}
+
+pub fn apply_crop(img: DynamicImage, crop_region: &CropRegion) -> Result<DynamicImage, String> {
     let (w, h) = img.dimensions();
-    if crop_region.x + crop_region.width > w || crop_region.y + crop_region.height > h {
+    validate_crop_bounds(w, h, crop_region)?;
+
+    Ok(img.crop_imm(
+        crop_region.x,
+        crop_region.y,
+        crop_region.width,
+        crop_region.height,
+    ))
+}
+
+/// 统一裁剪区域越界校验，避免重复逻辑和潜在 u32 溢出。
+fn validate_crop_bounds(w: u32, h: u32, crop_region: &CropRegion) -> Result<(), String> {
+    let right = crop_region
+        .x
+        .checked_add(crop_region.width)
+        .ok_or_else(|| "Crop region overflow on x + width".to_string())?;
+    let bottom = crop_region
+        .y
+        .checked_add(crop_region.height)
+        .ok_or_else(|| "Crop region overflow on y + height".to_string())?;
+
+    if right > w || bottom > h {
         return Err(format!(
             "Crop region out of bounds: image {}x{}, region x={} y={} {}x{}",
             w, h, crop_region.x, crop_region.y, crop_region.width, crop_region.height
         ));
     }
 
-    let cropped = img.crop_imm(
-        crop_region.x,
-        crop_region.y,
-        crop_region.width,
-        crop_region.height,
-    );
-    cropped.save(output_path).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+pub fn apply_resize(img: DynamicImage, options: Option<&ProcessOptions>) -> DynamicImage {
+    let (orig_w, orig_h) = img.dimensions();
+    let (target_w, target_h) = resolve_target_dimensions(&img, options);
+    if target_w != orig_w || target_h != orig_h {
+        return img.resize(target_w, target_h, image::imageops::FilterType::Lanczos3);
+    }
+    img
+}
+
+/// 根据可选参数推导缩放目标尺寸；未指定则保留原图尺寸。
+fn resolve_target_dimensions(img: &DynamicImage, options: Option<&ProcessOptions>) -> (u32, u32) {
+    let (orig_w, orig_h) = img.dimensions();
+    let target_w = options
+        .and_then(|opts| opts.width)
+        .filter(|w| *w > 0)
+        .unwrap_or(orig_w);
+    let target_h = options
+        .and_then(|opts| opts.height)
+        .filter(|h| *h > 0)
+        .unwrap_or(orig_h);
+    (target_w, target_h)
+}
+
+pub fn resolve_output_format(path: &str, options: Option<&ProcessOptions>) -> String {
+    let input_ext = Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if let Some(opts) = options {
+        if let Some(format) = &opts.format {
+            let normalized = format.trim().to_lowercase();
+            if !normalized.is_empty() && normalized != "auto" {
+                return normalized;
+            }
+        }
+    }
+    input_ext
+}
+
+pub fn save_image_with_format(
+    img: &DynamicImage,
+    output_path: &str,
+    format: &str,
+    mode: &CompressMode,
+    quality: Option<u8>,
+) -> Result<(), String> {
+    match format {
+        "png" => compress_png(img, output_path, mode),
+        "jpg" | "jpeg" => compress_jpeg(img, output_path, mode, quality),
+        "webp" => compress_webp(img, output_path, mode, quality),
+        _ => img.save(output_path).map_err(|e| e.to_string()),
+    }
 }
 
 pub fn compress_image<F>(
@@ -81,67 +153,46 @@ pub fn compress_image<F>(
 where
     F: FnMut(u8),
 {
-
-    let mut img = image::open(path).map_err(|e| e.to_string())?;
+    // 1) 读取图片
+    let mut img = load_image(path)?;
     progress_callback(10); // 读取完成
 
-    // ---- Crop ----
+    // 2) 可选裁剪
     if let Some(region) = crop_region {
-        let (w, h) = img.dimensions();
-        if region.x + region.width > w || region.y + region.height > h {
-            return Err("Crop region out of bounds".into());
-        }
-        img = img.crop_imm(region.x, region.y, region.width, region.height);
+        img = apply_crop(img, region)?;
     }
     progress_callback(30); // 裁剪完成
 
-    // ---- Resize ----
-    let default_opts = ProcessOptions {
-        quality: None,
-        format: None,
-        width: None,
-        height: None,
-    };
-    let opts = options.unwrap_or(&default_opts);
+    // 3) 可选缩放
     let (orig_w, orig_h) = img.dimensions();
-
-    let target_w = opts.width.filter(|w| *w > 0).unwrap_or(orig_w);
-    let target_h = opts.height.filter(|h| *h > 0).unwrap_or(orig_h);
-
-    if target_w != orig_w || target_h != orig_h {
-        img = img.resize(target_w, target_h, image::imageops::FilterType::Lanczos3);
-    }
+    let (target_w, target_h) = resolve_target_dimensions(&img, options);
+    img = apply_resize(img, options);
     progress_callback(60); // resize完成
 
-    // ---- Determine Format ----
-    let input_ext = Path::new(path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
+    // 4) 编码格式选择（优先 options.format，否则沿用原扩展名）
+    let format = resolve_output_format(path, options);
 
-    let format = opts
-        .format
-        .clone()
-        .filter(|f| !f.is_empty() && f != "auto")
-        .unwrap_or(input_ext);
-
-    // ---- Encode ----
-    match format.as_str() {
-        "png" => compress_png(&img, output_path, mode)?,
-        "jpg" | "jpeg" => compress_jpeg(&img, output_path, mode, opts.quality)?,
-        "webp" => compress_webp(&img, output_path, mode, opts.quality)?,
-        _ => img.save(output_path).map_err(|e| e.to_string())?,
-    }
+    // 5) 编码输出
+    let quality = options.and_then(|opts| opts.quality);
+    save_image_with_format(&img, output_path, &format, mode, quality)?;
     progress_callback(90); // 编码完成
 
 
-    // ---- Fallback (prevent larger output) ----
+    // 6) 无任何显式处理时，若输出更大则回退到原图，避免体积倒挂。
+    let has_explicit_processing = options.is_some_and(|opts| {
+        opts.quality.is_some()
+            || opts.format.as_deref().is_some_and(|f| {
+                let trimmed = f.trim();
+                !trimmed.is_empty() && trimmed != "auto"
+            })
+            || opts.width.unwrap_or(0) > 0
+            || opts.height.unwrap_or(0) > 0
+    });
+
     if crop_region.is_none()
         && target_w == orig_w
         && target_h == orig_h
-        && opts.quality.is_none()
-        && opts.format.is_none()
+        && !has_explicit_processing
         && Path::new(path) != Path::new(output_path)
     {
         let input_size = std::fs::metadata(path).map_err(|e| e.to_string())?.len();
@@ -174,7 +225,7 @@ fn compress_png(img: &image::DynamicImage, output_path: &str, mode: &CompressMod
 
     match mode {
         CompressMode::Lossless => {
-            let mut opt = oxipng::Options::from_preset(2);
+            let mut opt = oxipng::Options::from_preset(3);
             opt.optimize_alpha = true;
             let in_file = std::env::temp_dir().join("cruncher_png_input.png");
             std::fs::write(&in_file, &buf).map_err(|e| e.to_string())?;
@@ -197,8 +248,8 @@ fn compress_jpeg(
     quality: Option<u8>,
 ) -> Result<(), String> {
     let quality = quality.unwrap_or(match mode {
-        CompressMode::Lossless => 98,
-        CompressMode::VisuallyLossless => 95,
+        CompressMode::Lossless => 100,
+        CompressMode::VisuallyLossless => 96,
     });
     let quality = quality.clamp(1, 100);
     let rgb = img.to_rgb8();
@@ -228,7 +279,7 @@ fn compress_webp(
     let rgb = img.to_rgb8();
     let (w, h) = rgb.dimensions();
     let encoder = webp::Encoder::from_rgb(rgb.as_raw(), w, h);
-    let quality = quality.unwrap_or(95).clamp(1, 100) as f32;
+    let quality = quality.unwrap_or(96).clamp(1, 100) as f32;
     let buf = match mode {
         CompressMode::Lossless => encoder.encode_lossless(),
         CompressMode::VisuallyLossless => encoder.encode(quality),
@@ -244,22 +295,14 @@ pub fn perform_crop(
     output_path: &str,
     options: &CropOptions,
 ) -> Result<(), String> {
-    let img = image::open(input_path)
-        .map_err(|e| format!("Failed to open image: {e}"))?;
-
-    let (img_w, img_h) = img.dimensions();
-
-    if options.x + options.width > img_w ||
-       options.y + options.height > img_h {
-        return Err("Crop area out of bounds".into());
-    }
-
-    let cropped = img.crop_imm(
-        options.x,
-        options.y,
-        options.width,
-        options.height,
-    );
+    let img = load_image(input_path).map_err(|e| format!("Failed to open image: {e}"))?;
+    let crop_region = CropRegion {
+        x: options.x,
+        y: options.y,
+        width: options.width,
+        height: options.height,
+    };
+    let cropped = apply_crop(img, &crop_region).map_err(|e| format!("Crop failed: {e}"))?;
 
     // 是否圆形裁剪
     if options.circular.unwrap_or(false) {

@@ -50,3 +50,53 @@ export interface FfmpegCheckResult {
   path: string;
   version: string;
 }
+
+export type ImagePipelineStage = "crop" | "resize" | "convert" | "compress" | "save";
+
+export type ImageJobStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+export interface ImageJobRequest {
+  inputs: string[];
+  outputDir?: string;
+  mode?: CompressMode;
+  cropRegion?: CropRegion;
+  options?: ProcessOptions;
+  pipeline?: ImagePipelineStage[];
+  maxConcurrency?: number;
+}
+
+export interface ImageJobFileState {
+  inputPath: string;
+  outputPath?: string;
+  status: ImageJobStatus;
+  progress: number;
+  error?: string;
+}
+
+export interface ImageJobState {
+  jobId: string;
+  status: ImageJobStatus;
+  createdAtMs: number;
+  startedAtMs?: number;
+  completedAtMs?: number;
+  totalFiles: number;
+  completedFiles: number;
+  failedFiles: number;
+  cancelledFiles: number;
+  overallProgress: number;
+  files: ImageJobFileState[];
+}
+
+export interface ImageJobProgressEvent {
+  jobId: string;
+  fileIndex: number;
+  totalFiles: number;
+  inputPath?: string;
+  outputPath?: string;
+  stage?: ImagePipelineStage;
+  stageProgress: number;
+  overallProgress: number;
+  status: ImageJobStatus;
+  message?: string;
+  error?: string;
+}

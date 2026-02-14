@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { FolderOpen, ImagePlus, Loader2, Play } from "lucide-react";
+import { FolderOpen, ImagePlus, Loader2, Play, Square } from "lucide-react";
 import { useI18n } from "../hooks/useI18n";
 import { ModeSelector } from "./ModeSelector";
 import { OutputPicker } from "./OutputPicker";
@@ -22,6 +22,7 @@ interface ImportWorkspaceProps {
   outputDir: string | null;
   onOutputDirChange: (dir: string | null) => void;
   onRun: () => void;
+  onCancelRun?: () => void;
   running?: boolean;
   progress?: { current: number; total: number } | null;
   selectedPendingCount?: number;
@@ -39,6 +40,7 @@ export function ImportWorkspace({
   outputDir,
   onOutputDirChange,
   onRun,
+  onCancelRun,
   running = false,
   progress,
   selectedPendingCount = 0,
@@ -230,12 +232,12 @@ export function ImportWorkspace({
         />
         <button
           type="button"
-          onClick={onRun}
-          disabled={running || selectedPendingCount === 0}
+          onClick={running ? onCancelRun : onRun}
+          disabled={running ? !onCancelRun : selectedPendingCount === 0}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold shadow-sm transition-all"
         >
           {running ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Square className="w-4 h-4" />
           ) : (
             <Play className="w-4 h-4" />
           )}

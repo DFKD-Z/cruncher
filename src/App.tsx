@@ -9,6 +9,7 @@ import { useTheme } from "./hooks/useTheme";
 import { ImportWorkspace } from "./components/ImportWorkspace";
 import { AssetGrid } from "./components/AssetGrid";
 import { FfmpegBanner } from "./components/FfmpegBanner";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { CropPage } from "./components/CropPage";
 import { PreviewModal } from "./components/PreviewModal";
 import { ImageDetailPage } from "./pages/ImageDetailPage";
@@ -80,6 +81,8 @@ export default function App() {
     running,
     progress,
     openOutputFolder,
+    activeImageJobId,
+    cancelActiveImageJob,
   } = useCompress();
 
   const navigate = useNavigate();
@@ -258,9 +261,14 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 transition-colors">
-      <div className="max-w-8xl mx-auto">
-        <Routes>
+    <AppErrorBoundary
+      title={t("errorBoundary.title")}
+      message={t("errorBoundary.message")}
+      reloadLabel={t("errorBoundary.reload")}
+    >
+      <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 transition-colors">
+        <div className="max-w-8xl mx-auto">
+          <Routes>
           {/* 更具体的路由放前面，避免 path="/" 匹配到 /image/xxx */}
           <Route
             path="/image/:taskId"
@@ -340,6 +348,11 @@ export default function App() {
                       outputDir={outputDir}
                       onOutputDirChange={setOutputDir}
                       onRun={() => runSelectedByType(activeTab)}
+                      onCancelRun={
+                        activeTab === "image" && activeImageJobId
+                          ? cancelActiveImageJob
+                          : undefined
+                      }
                       running={running}
                       progress={progress}
                       selectedPendingCount={selectedPendingCount}
@@ -404,24 +417,25 @@ export default function App() {
               </>
             }
           />
-        </Routes>
+          </Routes>
+        </div>
+
+        {cropTask && cropTask.type === "image" && (
+          <CropPage
+            imagePath={cropTask.path}
+            onConfirm={handleCropConfirm}
+            onCancel={() => setCropTask(null)}
+          />
+        )}
+
+        {previewItem && (
+          <PreviewModal
+            path={previewItem.path}
+            type={previewItem.type}
+            onClose={() => setPreviewItem(null)}
+          />
+        )}
       </div>
-
-      {cropTask && cropTask.type === "image" && (
-        <CropPage
-          imagePath={cropTask.path}
-          onConfirm={handleCropConfirm}
-          onCancel={() => setCropTask(null)}
-        />
-      )}
-
-      {previewItem && (
-        <PreviewModal
-          path={previewItem.path}
-          type={previewItem.type}
-          onClose={() => setPreviewItem(null)}
-        />
-      )}
-    </div>
+    </AppErrorBoundary>
   );
 }

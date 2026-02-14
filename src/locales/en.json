@@ -97,5 +97,8 @@
   "imageDetail.cropSuccess": "Crop complete. Preview updated.",
   "imageDetail.cropError": "Crop failed",
   "imageDetail.confirmCrop": "Confirm crop",
-  "imageDetail.revertCrop": "Revert crop"
+  "imageDetail.revertCrop": "Revert crop",
+  "errorBoundary.title": "Something went wrong",
+  "errorBoundary.message": "The page crashed unexpectedly. You can reload and continue.",
+  "errorBoundary.reload": "Reload"
 }

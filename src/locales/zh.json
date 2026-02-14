@@ -97,5 +97,8 @@
   "imageDetail.cropSuccess": "裁剪成功，预览已更新",
   "imageDetail.cropError": "裁剪失败",
   "imageDetail.confirmCrop": "确认裁剪",
-  "imageDetail.revertCrop": "撤销裁剪"
+  "imageDetail.revertCrop": "撤销裁剪",
+  "errorBoundary.title": "页面出现异常",
+  "errorBoundary.message": "发生了未预期错误，您可以刷新后继续使用。",
+  "errorBoundary.reload": "刷新"
 }
