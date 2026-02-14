@@ -19,6 +19,7 @@ export interface ImageDetailPageProps {
   running: boolean;
   onBack: () => void;
   onApplyCrop: (crop: CropRegion) => void | Promise<void>;
+  onRevertCrop?: () => void;
   onApplyProcess: () => void;
   onSave: () => void;
 }
@@ -28,6 +29,7 @@ export function ImageDetailPage({
   running: _running,
   onBack,
   onApplyCrop,
+  onRevertCrop,
   onApplyProcess: _onApplyProcess,
   onSave: _onSave,
 }: ImageDetailPageProps) {
@@ -363,6 +365,22 @@ export function ImageDetailPage({
     }
   }, [processedPath, settings.format, task.name]);
 
+  const downloadCropped = useCallback(async () => {
+    const sourcePath = task.croppedImagePath ?? task.path;
+    if (!sourcePath) return;
+    const ext = sourcePath.split(".").pop() ?? task.name.split(".").pop() ?? "png";
+    const defaultFileName = `cropped-${task.name.replace(/\.[^.]+$/, "")}.${ext}`;
+    const path = await save({ defaultPath: defaultFileName });
+    if (path) {
+      try {
+        await invoke("copy_file", { from: sourcePath, to: path });
+        setExportDoneToast(true);
+      } catch (e) {
+        console.error("Export failed:", e);
+      }
+    }
+  }, [task.croppedImagePath, task.path, task.name]);
+
   const handleReEdit = useCallback(() => {
     setProcessedUrl(null);
     setProcessedPath(null);
@@ -382,12 +400,10 @@ export function ImageDetailPage({
           settings={settings}
           onSettingsChange={handleSettingsChange}
           onSetAspect={handleSetAspect}
-          onApplyCrop={handleApplyCrop}
-          isApplyingCrop={isApplyingCrop}
-          canApplyCrop={!!reactCrop}
           onBack={onBack}
           onRender={handleProcess}
           isProcessing={isProcessing}
+          showRenderOutput={!task.croppedImagePath}
         />
       </div>
 
@@ -400,6 +416,12 @@ export function ImageDetailPage({
             processedSize={processedSize}
             onReEdit={handleReEdit}
             onDownload={download}
+            onDownloadCropped={downloadCropped}
+            onRevertCrop={onRevertCrop}
+            showCropConfirm={activeTab === "crop" && !processedUrl && !task.croppedImagePath}
+            onApplyCrop={handleApplyCrop}
+            isApplyingCrop={isApplyingCrop}
+            canApplyCrop={!!reactCrop}
           />
 
           <DetailToasts
@@ -415,7 +437,7 @@ export function ImageDetailPage({
             cropViewportRef={cropViewportRef}
             previewSrc={previewSrc}
             processedUrl={processedUrl}
-            showCropView={activeTab === "crop" && !processedUrl}
+            showCropView={activeTab === "crop" && !processedUrl && !task.croppedImagePath}
             cropTransform={cropTransform}
             onCropPanStart={handleCropPanStart}
             reactCrop={reactCrop}

@@ -2,17 +2,9 @@ import { useI18n } from "../../hooks/useI18n";
 
 export interface CropSettingsPanelProps {
   onSetAspect: (ratio: number | null) => void;
-  onApplyCrop: () => void;
-  isApplyingCrop: boolean;
-  canApplyCrop: boolean;
 }
 
-export function CropSettingsPanel({
-  onSetAspect,
-  onApplyCrop,
-  isApplyingCrop,
-  canApplyCrop,
-}: CropSettingsPanelProps) {
+export function CropSettingsPanel({ onSetAspect }: CropSettingsPanelProps) {
   const { t } = useI18n();
 
   const presets = [
@@ -49,18 +41,6 @@ export function CropSettingsPanel({
           {t("imageDetail.zoomPanTip")}
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onApplyCrop}
-        disabled={isApplyingCrop || !canApplyCrop}
-        className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500 font-semibold text-sm text-white shadow-sm transition-all flex items-center justify-center gap-2"
-      >
-        {isApplyingCrop ? (
-          <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-        ) : (
-          t("crop.confirm")
-        )}
-      </button>
     </div>
   );
 }

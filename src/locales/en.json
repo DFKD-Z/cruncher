@@ -95,5 +95,7 @@
   "imageDetail.renderComplete": "Render complete. Ready to download.",
   "imageDetail.download": "Download",
   "imageDetail.cropSuccess": "Crop complete. Preview updated.",
-  "imageDetail.cropError": "Crop failed"
+  "imageDetail.cropError": "Crop failed",
+  "imageDetail.confirmCrop": "Confirm crop",
+  "imageDetail.revertCrop": "Revert crop"
 }

@@ -38,6 +38,16 @@ pub struct FileInfo {
     pub height: Option<u32>,
 }
 
+#[derive(Deserialize)]
+pub struct CropOptions {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+    pub circular: Option<bool>,
+    pub output_format: Option<String>, // "png" | "jpg" | "webp"
+}
+
 /// Open native file dialog and return selected file paths.
 #[tauri::command]
 fn pick_files(filters: Option<Vec<(String, Vec<String>)>>) -> Result<Vec<String>, String> {
@@ -109,16 +119,6 @@ async fn get_file_info(path: String) -> Result<FileInfo, String> {
     })
 }
 
-/// Crop image to the given region and save to output_path.
-#[tauri::command]
-fn crop_image(
-    path: String,
-    output_path: String,
-    crop_region: CropRegion,
-) -> Result<(), String> {
-    core::image::crop_image(&path, &output_path, &crop_region)
-}
-
 /// Compress image: optional crop first, then compress by format and mode.
 /// Runs in a blocking thread so progress_callback can be delivered to the frontend during execution.
 #[tauri::command]
@@ -146,6 +146,19 @@ async fn compress_image(
     .map_err(|e| e.to_string())
     .flatten()
 }
+
+// 裁剪图片
+#[tauri::command]
+async fn crop_image_command(
+    input_path: String,
+    output_path: String,
+    options: CropOptions,
+) -> Result<String, String> {
+    core::image::perform_crop(&input_path, &output_path, &options)?;
+
+    Ok(output_path)
+}
+
 
 /// Check if FFmpeg is available on the system.
 #[tauri::command]
@@ -200,7 +213,7 @@ pub fn run() {
             pick_directory,
             list_image_files_in_directory,
             get_file_info,
-            crop_image,
+            crop_image_command,
             compress_image,
             check_ffmpeg,
             compress_video,

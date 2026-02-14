@@ -24,6 +24,7 @@ interface ImageDetailRouteProps {
   runSingleTask: (task: CompressTask) => void;
   handleDownloadOutput: (task: CompressTask) => void;
   handleApplyCrop: (task: CompressTask, crop: { x: number; y: number; width: number; height: number }) => Promise<void>;
+  onRevertCrop: (task: CompressTask) => void;
   onBack: () => void;
 }
 
@@ -33,6 +34,7 @@ function ImageDetailRoute({
   runSingleTask,
   handleDownloadOutput,
   handleApplyCrop,
+  onRevertCrop,
   onBack,
 }: ImageDetailRouteProps) {
   const { taskId: rawTaskId } = useParams<{ taskId: string }>();
@@ -49,6 +51,7 @@ function ImageDetailRoute({
       running={running}
       onBack={onBack}
       onApplyCrop={(crop) => handleApplyCrop(task, crop)}
+      onRevertCrop={() => onRevertCrop(task)}
       onApplyProcess={() => runSingleTask(task)}
       onSave={() => handleDownloadOutput(task)}
     />
@@ -168,10 +171,10 @@ export default function App() {
           : ".png";
         const safeId = cropTask.id.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
         const outputPath = await join(temp, `cruncher_crop_${safeId}${ext}`);
-        await invoke("crop_image", {
-          path: cropTask.path,
+        await invoke("crop_image_command", {
+          inputPath: cropTask.path,
           outputPath,
-          cropRegion: crop,
+          options: crop,
         });
         setTaskCroppedPath(cropTask.id, outputPath);
       } catch {
@@ -192,10 +195,10 @@ export default function App() {
         : ".png";
       const safeId = task.id.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
       const outputPath = await join(temp, `cruncher_crop_${safeId}${ext}`);
-      const cropPromise = invoke("crop_image", {
-        path: task.path,
+      const cropPromise = invoke("crop_image_command", {
+        inputPath: task.path,
         outputPath,
-        cropRegion: crop,
+        options: crop,
       });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Crop timeout")), CROP_TIMEOUT_MS)
@@ -204,6 +207,14 @@ export default function App() {
       setTaskCroppedPath(task.id, outputPath);
     },
     [setTaskCrop, setTaskCroppedPath]
+  );
+
+  const handleRevertCrop = useCallback(
+    (task: CompressTask) => {
+      setTaskCroppedPath(task.id, null);
+      setTaskCrop(task.id, null);
+    },
+    [setTaskCroppedPath, setTaskCrop]
   );
 
   const handleDownloadCropped = useCallback(
@@ -260,6 +271,7 @@ export default function App() {
                 runSingleTask={runSingleTask}
                 handleDownloadOutput={handleDownloadOutput}
                 handleApplyCrop={handleApplyCrop}
+                onRevertCrop={handleRevertCrop}
                 onBack={() => navigate("/")}
               />
             }

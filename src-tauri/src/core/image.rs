@@ -2,7 +2,7 @@ use image::codecs::png::{CompressionType, FilterType};
 use image::{ExtendedColorType, GenericImageView, ImageEncoder, ImageFormat};
 use std::path::{Path, PathBuf};
 
-use crate::{CompressMode, CropRegion, ProcessOptions};
+use crate::{CompressMode, CropOptions, CropRegion, ProcessOptions};
 
 pub struct ImageMetadata {
     pub size_bytes: u64,
@@ -50,7 +50,7 @@ pub fn get_file_info(path: &str) -> Result<ImageMetadata, String> {
     })
 }
 
-pub fn crop_image(path: &str, output_path: &str, crop_region: &CropRegion) -> Result<(), String> {
+pub fn crop_image_region(path: &str, output_path: &str, crop_region: &CropRegion) -> Result<(), String> {
     let img = image::open(path).map_err(|e| e.to_string())?;
     let (w, h) = img.dimensions();
     if crop_region.x + crop_region.width > w || crop_region.y + crop_region.height > h {
@@ -234,5 +234,70 @@ fn compress_webp(
         CompressMode::VisuallyLossless => encoder.encode(quality),
     };
     std::fs::write(output_path, &*buf).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+
+// 裁剪图片（支持矩形/圆形、输出格式）
+pub fn perform_crop(
+    input_path: &str,
+    output_path: &str,
+    options: &CropOptions,
+) -> Result<(), String> {
+    let img = image::open(input_path)
+        .map_err(|e| format!("Failed to open image: {e}"))?;
+
+    let (img_w, img_h) = img.dimensions();
+
+    if options.x + options.width > img_w ||
+       options.y + options.height > img_h {
+        return Err("Crop area out of bounds".into());
+    }
+
+    let cropped = img.crop_imm(
+        options.x,
+        options.y,
+        options.width,
+        options.height,
+    );
+
+    // 是否圆形裁剪
+    if options.circular.unwrap_or(false) {
+        let mut rgba = cropped.to_rgba8();
+        let (w, h) = rgba.dimensions();
+        let radius = w.min(h) / 2;
+        let center = (w / 2, h / 2);
+
+        for x in 0..w {
+            for y in 0..h {
+                let dx = x as i32 - center.0 as i32;
+                let dy = y as i32 - center.1 as i32;
+
+                if dx * dx + dy * dy > (radius as i32 * radius as i32) {
+                    rgba.get_pixel_mut(x, y).0[3] = 0;
+                }
+            }
+        }
+
+        rgba.save(output_path)
+            .map_err(|e| format!("Save failed: {e}"))?;
+
+        return Ok(());
+    }
+
+    // 普通裁剪保存
+    let format = match options.output_format
+        .as_deref()
+        .unwrap_or("png")
+    {
+        "jpg" | "jpeg" => ImageFormat::Jpeg,
+        "webp" => ImageFormat::WebP,
+        _ => ImageFormat::Png,
+    };
+
+    cropped
+        .save_with_format(output_path, format)
+        .map_err(|e| format!("Save failed: {e}"))?;
+
     Ok(())
 }
