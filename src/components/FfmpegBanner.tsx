@@ -10,7 +10,7 @@ export function FfmpegBanner({ show }: FfmpegBannerProps) {
   if (!show) return null;
   return (
     <div
-      className="flex items-center gap-3 p-3 rounded-xl bg-amber-950/50 text-amber-200 border border-amber-700"
+      className="flex items-center gap-3 p-3  bg-amber-950/50 text-amber-200 border border-amber-700"
       role="alert"
     >
       <AlertCircle className="w-5 h-5 shrink-0" />

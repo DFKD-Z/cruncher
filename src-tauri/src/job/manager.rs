@@ -161,15 +161,6 @@ impl JobManager {
         })
     }
 
-    pub fn is_cancelled(&self, job_id: &str) -> Result<bool, String> {
-        let guard = self.inner.lock().map_err(|_| "Job manager poisoned")?;
-        let job = guard
-            .jobs
-            .get(job_id)
-            .ok_or_else(|| format!("Job not found: {job_id}"))?;
-        Ok(job.cancel_flag.load(Ordering::Acquire))
-    }
-
     pub fn cancel_flag(&self, job_id: &str) -> Result<Arc<AtomicBool>, String> {
         let guard = self.inner.lock().map_err(|_| "Job manager poisoned")?;
         let job = guard
