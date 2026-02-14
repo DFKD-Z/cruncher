@@ -11,10 +11,11 @@
 ## ✨ 特性
 
 - **本地处理**：所有数据在设备内完成，不离开您的电脑
-- **图片压缩**：支持 JPG、PNG、WEBP 等格式，使用 Rust `image` + `oxipng` + `webp` 库
-- **视频压缩**：基于 FFmpeg，支持 MP4、MOV 等
+- **图片压缩**：支持 PNG、JPG、JPEG、WEBP、GIF、BMP、TIFF 等格式，使用 Rust `image` + `oxipng` + `webp` 库
+- **视频压缩**：基于 FFmpeg（需系统安装），支持 MP4、MOV 等
 - **无损 / 视觉无损**：可切换压缩模式，平衡体积与画质
 - **图片裁剪**：选区裁剪、预设比例（1:1 等）、画质与分辨率调节
+- **批量任务**：JobManager 调度，支持取消、进度追踪、多阶段流水线
 - **多语言**：中文 / English
 - **跨平台**：macOS、Windows、Linux
 
@@ -26,11 +27,13 @@
 |------|------|
 | 桌面壳 | Tauri 2 (Rust) |
 | 前端 | React 19 + Vite 7 + TypeScript |
+| 路由 | React Router 7 |
 | 样式 | Tailwind CSS 4 |
 | 图标 | Lucide React |
 | 图片裁剪 | react-image-crop |
 | 图片处理 | image, oxipng, webp (Rust) |
 | 视频处理 | FFmpeg（需系统安装） |
+| Tauri 插件 | dialog, fs, opener, shell |
 
 ---
 
@@ -55,6 +58,8 @@ pnpm install
 
 ```bash
 pnpm tauri dev
+# 或
+pnpm tauri:dev
 ```
 
 ### 构建生产版本
@@ -77,26 +82,48 @@ pnpm preview   # 预览构建结果
 
 ```
 cruncher/
-├── src/                    # React 前端
-│   ├── components/         # UI 组件
-│   │   ├── AssetGrid.tsx
-│   │   ├── CropPage.tsx
-│   │   ├── FileDropZone.tsx
-│   │   ├── ImageDetailPage/ # 图片详情与裁剪
+├── src/                         # React 前端
+│   ├── components/              # UI 组件
+│   │   ├── AssetGrid.tsx        # 资产网格
+│   │   ├── CropPage.tsx         # 裁剪页
+│   │   ├── FileDropZone.tsx     # 拖拽导入
+│   │   ├── FfmpegBanner.tsx     # FFmpeg 检测提示
+│   │   ├── ImportWorkspace.tsx  # 导入工作区
+│   │   ├── ModeSelector.tsx     # 压缩模式选择
+│   │   ├── OutputPicker.tsx     # 输出目录选择
+│   │   ├── PreviewModal.tsx     # 预览弹窗
 │   │   └── ...
-│   ├── hooks/              # 自定义 Hooks
-│   │   ├── useCompress.ts
-│   │   ├── useFfmpegCheck.ts
-│   │   └── useI18n.ts
 │   ├── pages/
-│   ├── locales/            # i18n 语言包
-│   └── types/
-├── src-tauri/              # Tauri 后端 (Rust)
+│   │   └── ImageDetailPage/     # 图片详情与裁剪
+│   │       ├── index.tsx
+│   │       ├── CropSettingsPanel.tsx
+│   │       ├── CompressSettingsPanel.tsx
+│   │       ├── DetailSidebar.tsx
+│   │       ├── ImagePreviewArea.tsx
+│   │       └── ...
+│   ├── hooks/
+│   │   ├── useCompress.ts       # 压缩逻辑
+│   │   ├── useFfmpegCheck.ts    # FFmpeg 检测
+│   │   ├── useI18n.ts           # 国际化
+│   │   ├── useImageProcess.ts   # 图片处理
+│   │   └── useTheme.ts          # 主题
+│   ├── locales/                 # i18n 语言包
+│   ├── types/
+│   └── utils/
+├── src-tauri/                   # Tauri 后端 (Rust)
 │   ├── src/
 │   │   ├── core/
-│   │   │   ├── image.rs    # 图片压缩、裁剪
-│   │   │   └── video.rs    # 视频压缩、FFmpeg 检测
-│   │   ├── lib.rs
+│   │   │   ├── image.rs         # 图片压缩、裁剪、元数据
+│   │   │   └── video.rs         # 视频压缩、FFmpeg 检测
+│   │   ├── job/
+│   │   │   ├── manager.rs       # 任务调度与状态
+│   │   │   └── types.rs         # Job 类型定义
+│   │   ├── pipeline/
+│   │   │   ├── executor.rs      # 流水线执行
+│   │   │   ├── stage.rs         # 阶段定义（Crop/Resize/Convert/Compress/Save）
+│   │   │   └── validator.rs     # 流水线校验
+│   │   ├── progress/            # 进度事件
+│   │   ├── lib.rs               # 命令入口
 │   │   └── main.rs
 │   ├── Cargo.toml
 │   └── tauri.conf.json
@@ -106,15 +133,31 @@ cruncher/
 
 ---
 
+## 🔄 流水线阶段
+
+图片处理采用多阶段流水线（`PipelineStageKind`）：
+
+| 阶段 | 说明 | 权重 |
+|------|------|------|
+| Crop | 裁剪 | 15% |
+| Resize | 缩放 | 20% |
+| Convert | 格式转换 | 15% |
+| Compress | 压缩 | 35% |
+| Save | 保存 | 15% |
+
+任务通过 `create_image_job` 创建，支持 `image-job-progress` 事件实时推送进度，可随时 `cancel_image_job` 取消。
+
+---
+
 ## 🎯 使用说明
 
-1. **导入资产**：拖拽或点击「浏览」添加图片 / 视频
+1. **导入资产**：拖拽或点击「浏览」添加图片 / 视频，或「导入文件夹」批量添加
 2. **选择模式**：无损（体积较大）或 视觉无损（体积更小）
-3. **可选裁剪**：对图片进行选区裁剪或使用预设比例
-4. **开始压缩**：选中任务后点击「开始压缩选中」
+3. **可选裁剪**：进入图片详情页，进行选区裁剪或使用预设比例
+4. **开始压缩**：选中任务后点击「开始压缩选中」，或使用批量处理
 5. **导出**：选择输出目录或直接下载到默认位置
 
-> 若未检测到 FFmpeg，应用会提示，视频压缩功能将不可用。
+> 若未检测到 FFmpeg，应用会显示提示条，视频压缩功能将不可用。
 
 ---
 
