@@ -16,7 +16,7 @@ export function CompressSettingsPanel({
     <div className="space-y-5">
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <label className="text-sm font-medium text-zinc-300">
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t("imageDetail.quality")}
           </label>
           <span className="text-blue-400 font-mono font-semibold bg-blue-500/15 px-2.5 py-1 rounded-lg">
@@ -31,7 +31,7 @@ export function CompressSettingsPanel({
           onChange={(e) =>
             onSettingsChange({ quality: parseInt(e.target.value, 10) })
           }
-          className="w-full h-2 bg-zinc-600 rounded-full appearance-none cursor-pointer accent-blue-500"
+          className="w-full h-2 bg-zinc-300 dark:bg-zinc-600 rounded-full appearance-none cursor-pointer accent-blue-500"
         />
       </div>
 
@@ -48,7 +48,7 @@ export function CompressSettingsPanel({
               className={`py-4 px-3 rounded-xl border font-medium transition-all ${
                 settings.format === fmt
                   ? "bg-blue-500/20 border-blue-500 text-blue-400"
-                  : "bg-zinc-800/50 border-zinc-600 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300"
+                  : "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
               }`}
             >
               {fmt.toUpperCase()}
@@ -71,9 +71,9 @@ export function CompressSettingsPanel({
                   width: parseInt(e.target.value, 10) || 0,
                 })
               }
-              className="w-full bg-zinc-900 border border-zinc-600 rounded-xl pl-3 pr-8 py-2.5 text-sm font-mono outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20"
+              className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-xl pl-3 pr-8 py-2.5 text-sm font-mono text-zinc-900 dark:text-zinc-100 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-500">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-500 dark:text-zinc-500">
               W
             </span>
           </div>
@@ -86,9 +86,9 @@ export function CompressSettingsPanel({
                   height: parseInt(e.target.value, 10) || 0,
                 })
               }
-              className="w-full bg-zinc-900 border border-zinc-600 rounded-xl pl-3 pr-8 py-2.5 text-sm font-mono outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20"
+              className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-xl pl-3 pr-8 py-2.5 text-sm font-mono text-zinc-900 dark:text-zinc-100 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-500">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-500 dark:text-zinc-500">
               H
             </span>
           </div>

@@ -22,7 +22,7 @@ export function PreviewHeader({
   const { t } = useI18n();
 
   return (
-    <div className="px-6 py-4 flex items-center justify-between bg-zinc-800/90 border-b border-zinc-700">
+    <div className="px-6 py-4 flex items-center justify-between bg-zinc-100 dark:bg-zinc-800/90 border-b border-zinc-200 dark:border-zinc-700">
       <div className="flex items-center gap-3">
         <span
           className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
@@ -33,7 +33,7 @@ export function PreviewHeader({
         >
           {processedUrl ? t("imageDetail.rendered") : t("imageDetail.viewport")}
         </span>
-        <span className="text-sm font-medium text-zinc-300 truncate max-w-[200px]">
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate max-w-[200px]">
           {task.name}
         </span>
         {processedUrl && !isProcessing && (
@@ -41,7 +41,7 @@ export function PreviewHeader({
             <button
               type="button"
               onClick={onReEdit}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-600 hover:bg-zinc-500 text-zinc-100 text-xs font-semibold transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-300 dark:bg-zinc-600 hover:bg-zinc-400 dark:hover:bg-zinc-500 text-zinc-900 dark:text-zinc-100 text-xs font-semibold transition-colors"
             >
               <RefreshCcw className="w-4 h-4 shrink-0" />
               {t("imageDetail.reEdit")}
@@ -60,15 +60,15 @@ export function PreviewHeader({
       </div>
       <div className="flex gap-6 items-center">
         <div className="text-right">
-          <span className="block text-[9px] text-zinc-500 font-semibold uppercase">
+          <span className="block text-[9px] text-zinc-500 dark:text-zinc-500 font-semibold uppercase">
             {t("detail.original")}
           </span>
-          <span className="text-xs font-mono text-zinc-300">
+          <span className="text-xs font-mono text-zinc-700 dark:text-zinc-300">
             {(task.sizeBytes / 1024).toFixed(1)} KB
           </span>
         </div>
         {processedSize != null && (
-          <div className="text-right pl-6 border-l border-zinc-600">
+          <div className="text-right pl-6 border-l border-zinc-300 dark:border-zinc-600">
             <span className="block text-[9px] text-green-500 font-semibold uppercase">
               {t("imageDetail.saved")}{" "}
               {Math.round((1 - processedSize / task.sizeBytes) * 100)}%

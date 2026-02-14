@@ -1,8 +1,21 @@
 @import "tailwindcss";
 
-/* Precision Processing 风格：深色主题 + 青蓝强调色 */
+/* 手动切换暗黑/明亮模式，基于 html.dark class */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 明亮模式（默认） */
 :root {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #18181b;
+  background-color: #fafafa;
+  --accent: #0891b2;
+  --accent-hover: #0e7490;
+  --card: #ffffff;
+  --border: #e4e4e7;
+}
+
+/* 暗黑模式 */
+.dark {
   color: #e2e8f0;
   background-color: #070707;
   --accent: #22d3ee;

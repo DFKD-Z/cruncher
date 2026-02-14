@@ -390,7 +390,7 @@ export function ImageDetailPage({
       />
 
       <div className="lg:col-span-8 flex flex-col h-screen">
-        <div className="overflow-hidden flex flex-col flex-1 min-h-0 bg-zinc-800 border border-zinc-700 rounded-2xl shadow-lg">
+        <div className="overflow-hidden flex flex-col flex-1 min-h-0 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-lg">
           <PreviewHeader
             task={task}
             processedUrl={processedUrl}

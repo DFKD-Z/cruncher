@@ -3,7 +3,9 @@ import { useNavigate, useParams, Routes, Route, Navigate } from "react-router-do
 import { invoke } from "@tauri-apps/api/core";
 import { tempDir, join } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { Sun, Moon } from "lucide-react";
 import { useI18n } from "./hooks/useI18n";
+import { useTheme } from "./hooks/useTheme";
 import { ImportWorkspace } from "./components/ImportWorkspace";
 import { AssetGrid } from "./components/AssetGrid";
 import { FfmpegBanner } from "./components/FfmpegBanner";
@@ -55,6 +57,7 @@ function ImageDetailRoute({
 
 export default function App() {
   const { t } = useI18n();
+  const { theme, toggleTheme } = useTheme();
   const { result: ffmpegResult } = useFfmpegCheck();
   const [activeTab, setActiveTab] = useState<TabId>("image");
   const {
@@ -244,7 +247,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 transition-colors">
       <div className="max-w-8xl mx-auto">
         <Routes>
           {/* 更具体的路由放前面，避免 path="/" 匹配到 /image/xxx */}
@@ -272,29 +275,44 @@ export default function App() {
                 {/* 左右布局：固定高度，仅右侧列表可滚动 */}
                 <div className="flex flex-col lg:flex-row gap-8 lg:gap-0 h-screen overflow-hidden">
                   {/* 左侧：上传区域（固定不随列表滚动）— 苹果风格 */}
-                  <div className="shrink-0 lg:w-[42%] xl:w-[38%] lg:max-w-lg lg:pr-8 lg:border-r lg:border-zinc-800 p-6">
-                    <div className="flex p-1.5 bg-zinc-900/80 border border-zinc-700 rounded-xl w-fit mb-6">
+                  <div className="shrink-0 lg:w-[42%] xl:w-[38%] lg:max-w-lg lg:pr-8 lg:border-r lg:border-zinc-200 dark:border-zinc-800 p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="flex p-1.5 bg-zinc-200/80 dark:bg-zinc-900/80 border border-zinc-300 dark:border-zinc-700 rounded-xl w-fit">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("image")}
+                          className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition-all ${
+                            activeTab === "image"
+                              ? "bg-blue-500 text-white shadow-sm"
+                              : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                          }`}
+                        >
+                          {t("tab.images")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("video")}
+                          className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition-all ${
+                            activeTab === "video"
+                              ? "bg-blue-500 text-white shadow-sm"
+                              : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                          }`}
+                        >
+                          {t("tab.videos")}
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => setActiveTab("image")}
-                        className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition-all ${
-                          activeTab === "image"
-                            ? "bg-blue-500 text-white shadow-sm"
-                            : "text-zinc-400 hover:text-zinc-100"
-                        }`}
+                        onClick={toggleTheme}
+                        title={theme === "dark" ? t("theme.light") : t("theme.dark")}
+                        className="p-2 rounded-lg bg-zinc-200/80 dark:bg-zinc-900/80 border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all"
+                        aria-label={t("theme.toggle")}
                       >
-                        {t("tab.images")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab("video")}
-                        className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition-all ${
-                          activeTab === "video"
-                            ? "bg-blue-500 text-white shadow-sm"
-                            : "text-zinc-400 hover:text-zinc-100"
-                        }`}
-                      >
-                        {t("tab.videos")}
+                        {theme === "dark" ? (
+                          <Sun className="w-4 h-4" />
+                        ) : (
+                          <Moon className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
 
@@ -360,7 +378,7 @@ export default function App() {
                     )}
                     {(activeTab === "image" ? imageTasks : videoTasks).length ===
                       0 && (
-                      <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                      <div className="flex flex-col items-center justify-center py-20 text-zinc-500 dark:text-zinc-500">
                         <p className="text-sm font-medium">
                           {activeTab === "image"
                             ? t("dropzone.promptImage")

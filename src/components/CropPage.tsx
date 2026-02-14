@@ -76,17 +76,17 @@ export function CropPage({
   }, [completedCrop, crop, onConfirm]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950">
+    <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-950">
       {/* 顶部操作栏 */}
-      <div className="shrink-0 flex items-center justify-between gap-4 px-6 py-3 border-b border-slate-700 bg-slate-900/80">
-        <h2 className="text-lg font-semibold text-white">
+      <div className="shrink-0 flex items-center justify-between gap-4 px-6 py-3 border-b border-zinc-200 dark:border-slate-700 bg-zinc-50 dark:bg-slate-900/80">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
           {t("crop.title")}
         </h2>
         <div className="flex gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium transition-colors"
+            className="px-4 py-2 rounded-lg bg-zinc-200 dark:bg-slate-700 hover:bg-zinc-300 dark:hover:bg-slate-600 text-zinc-800 dark:text-slate-300 font-medium transition-colors"
           >
             {t("crop.cancel")}
           </button>

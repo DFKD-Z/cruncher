@@ -52,7 +52,7 @@ export function ImagePreviewArea({
   return (
     <div
       ref={previewContainerRef}
-      className="flex-1 min-h-0 relative bg-zinc-950 flex items-center justify-center p-8 overflow-hidden"
+      className="flex-1 min-h-0 relative bg-zinc-200 dark:bg-zinc-950 flex items-center justify-center p-8 overflow-hidden"
     >
       <div className="relative w-full h-full flex items-center justify-center overflow-hidden min-w-0 min-h-0">
         {showCropView ? (
@@ -103,13 +103,13 @@ export function ImagePreviewArea({
       </div>
 
       {isProcessing && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/70 backdrop-blur-sm rounded-b-2xl">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-900/70 dark:bg-zinc-950/70 backdrop-blur-sm rounded-b-2xl">
           <span className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           <p className="text-sm font-semibold text-white">
             {t("imageDetail.processingFrame")}
           </p>
           <p className="text-xs text-blue-400">{processProgress}%</p>
-          <p className="text-xs text-zinc-500">{t("imageDetail.runningLocally")}</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("imageDetail.runningLocally")}</p>
         </div>
       )}
     </div>

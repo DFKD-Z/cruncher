@@ -38,15 +38,15 @@ export function DetailSidebar({
   return (
     <div className="lg:col-span-4 flex flex-col h-full overflow-y-auto">
       <div className="space-y-6 shrink-0">
-        <div className="p-6 bg-zinc-800/90 border border-zinc-700 rounded-2xl shadow-lg space-y-6">
-          <div className="flex p-1.5 bg-zinc-900/80 border border-zinc-600 rounded-xl">
+        <div className="p-6 bg-zinc-100 dark:bg-zinc-800/90 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-lg space-y-6">
+          <div className="flex p-1.5 bg-zinc-200 dark:bg-zinc-900/80 border border-zinc-300 dark:border-zinc-600 rounded-xl">
             <button
               type="button"
               onClick={() => onTabChange("compress")}
               className={`flex-1 py-2.5 text-xs font-semibold rounded-lg transition-all ${
                 activeTab === "compress"
                   ? "bg-blue-500 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-100"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
               }`}
             >
               {t("detail.tabCompress")}
@@ -57,7 +57,7 @@ export function DetailSidebar({
               className={`flex-1 py-2.5 text-xs font-semibold rounded-lg transition-all ${
                 activeTab === "crop"
                   ? "bg-blue-500 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-100"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
               }`}
             >
               {t("imageDetail.tabTransform")}
@@ -84,7 +84,7 @@ export function DetailSidebar({
             <button
               type="button"
               onClick={onBack}
-              className="w-full py-4 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all bg-zinc-700 hover:bg-zinc-600 text-zinc-200 border border-zinc-600"
+              className="w-full py-4 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-900 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-600"
             >
               <ArrowLeft className="w-4 h-4" />
               {t("detail.backToList")}
