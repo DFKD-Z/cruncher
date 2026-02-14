@@ -335,7 +335,7 @@ export default function App() {
                   </div>
 
                   {/* 右侧：资产列表（仅此区域可滚动） */}
-                  <div className="flex-1 min-w-0 lg:pl-8 overflow-y-auto overflow-x-hidden p-6">
+                  <div className="flex-1 min-w-0 lg:pl-8 overflow-y-auto overflow-x-hidden p-6 pb-0">
                     {activeTab === "image" && imageTasks.length > 0 && (
                       <AssetGrid
                         tasks={imageTasks}

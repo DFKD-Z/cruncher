@@ -36,7 +36,7 @@ export function CompressSettingsPanel({
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-zinc-300">
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           {t("imageDetail.format")}
         </label>
         <div className="grid grid-cols-2 gap-2">
@@ -45,7 +45,7 @@ export function CompressSettingsPanel({
               key={fmt}
               type="button"
               onClick={() => onSettingsChange({ format: fmt })}
-              className={`py-4 px-3 rounded-xl border font-medium transition-all ${
+              className={`py-3 px-3 rounded-xl border font-medium transition-all text-xs ${
                 settings.format === fmt
                   ? "bg-blue-500/20 border-blue-500 text-blue-400"
                   : "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
@@ -58,7 +58,7 @@ export function CompressSettingsPanel({
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-zinc-300">
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           {t("imageDetail.resolution")}
         </label>
         <div className="grid grid-cols-2 gap-3">

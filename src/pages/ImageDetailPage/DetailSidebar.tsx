@@ -36,7 +36,7 @@ export function DetailSidebar({
   const { t } = useI18n();
 
   return (
-    <div className="lg:col-span-4 flex flex-col h-full overflow-y-auto">
+    <div className="lg:col-span-4 flex flex-col h-full overflow-y-auto p-4">
       <div className="space-y-6 shrink-0">
         <div className="p-6 bg-zinc-100 dark:bg-zinc-800/90 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-lg space-y-6">
           <div className="flex p-1.5 bg-zinc-200 dark:bg-zinc-900/80 border border-zinc-300 dark:border-zinc-600 rounded-xl">

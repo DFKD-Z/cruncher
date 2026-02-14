@@ -374,7 +374,7 @@ export function ImageDetailPage({
   }, []);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in slide-in-from-bottom-4 duration-300 overflow-hidden">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 animate-in slide-in-from-bottom-4 duration-300 overflow-hidden ">
       <DetailSidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -390,7 +390,7 @@ export function ImageDetailPage({
       />
 
       <div className="lg:col-span-8 flex flex-col h-screen">
-        <div className="overflow-hidden flex flex-col flex-1 min-h-0 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-lg">
+        <div className="overflow-hidden flex flex-col flex-1 min-h-0 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg">
           <PreviewHeader
             task={task}
             processedUrl={processedUrl}
