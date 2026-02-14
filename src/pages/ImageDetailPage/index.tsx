@@ -271,10 +271,10 @@ export function ImageDetailPage({
         cropForRender.unit === "px"
           ? (cropForRender as PixelCrop)
           : convertToPixelCrop(
-              cropForRender,
-              displayImg.offsetWidth,
-              displayImg.offsetHeight
-            );
+            cropForRender,
+            displayImg.offsetWidth,
+            displayImg.offsetHeight
+          );
 
       const safeDisplayWidth = Math.max(1, displayImg.offsetWidth);
       const safeDisplayHeight = Math.max(1, displayImg.offsetHeight);
@@ -375,21 +375,23 @@ export function ImageDetailPage({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12  animate-in slide-in-from-bottom-4 duration-300 overflow-hidden ">
-      <DetailSidebar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        settings={settings}
-        onSettingsChange={handleSettingsChange}
-        onSetAspect={handleSetAspect}
-        onApplyCrop={handleApplyCrop}
-        isApplyingCrop={isApplyingCrop}
-        canApplyCrop={!!reactCrop}
-        onBack={onBack}
-        onRender={handleProcess}
-        isProcessing={isProcessing}
-      />
+      <div className="lg:col-span-3 flex flex-col h-full overflow-y-auto p-4 pr-2">
+        <DetailSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          settings={settings}
+          onSettingsChange={handleSettingsChange}
+          onSetAspect={handleSetAspect}
+          onApplyCrop={handleApplyCrop}
+          isApplyingCrop={isApplyingCrop}
+          canApplyCrop={!!reactCrop}
+          onBack={onBack}
+          onRender={handleProcess}
+          isProcessing={isProcessing}
+        />
+      </div>
 
-      <div className="lg:col-span-8 flex flex-col p-4 h-screen">
+      <div className="lg:col-span-9 flex flex-col p-4 h-screen">
         <div className="overflow-hidden flex flex-col flex-1 min-h-0 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg rounded-2xl">
           <PreviewHeader
             task={task}
